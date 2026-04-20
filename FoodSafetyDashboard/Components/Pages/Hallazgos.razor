@@ -1,0 +1,107 @@
+@page "/hallazgos"
+@rendermode InteractiveServer
+@inject AuditService AuditSvc
+
+<PageTitle>Hallazgos Sistémicos</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Hallazgos Sistémicos</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <!-- Resumen por severidad -->
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-3 text-center" Elevation="2" Style="border-left: 4px solid #C00000;">
+                <MudText Typo="Typo.h4" Style="color:#C00000"><b>@_findings.Count(f => f.Severity == "CRÍTICO")</b></MudText>
+                <MudText Typo="Typo.body1">Hallazgos CRÍTICOS</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-3 text-center" Elevation="2" Style="border-left: 4px solid #ED7D31;">
+                <MudText Typo="Typo.h4" Style="color:#ED7D31"><b>@_findings.Count(f => f.Severity == "ALTO")</b></MudText>
+                <MudText Typo="Typo.body1">Hallazgos ALTO</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-3 text-center" Elevation="2" Style="border-left: 4px solid #FFD966;">
+                <MudText Typo="Typo.h4" Style="color:#b8860b"><b>@_findings.Count(f => f.Severity == "MODERADO")</b></MudText>
+                <MudText Typo="Typo.body1">Hallazgos MODERADOS</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Tabla de hallazgos -->
+    <MudPaper Elevation="2">
+        <MudTable Items="_findings" Dense="true" Striped="true" Hover="true"
+                  GroupBy="_groupDefinition" GroupHeaderStyle="background-color:#f5f7fa">
+            <HeaderContent>
+                <MudTh>#</MudTh>
+                <MudTh>Descripción</MudTh>
+                <MudTh>Categoría</MudTh>
+                <MudTh>Severidad</MudTh>
+                <MudTh>Tiendas Afectadas</MudTh>
+                <MudTh>Acción Requerida</MudTh>
+            </HeaderContent>
+            <GroupHeaderTemplate>
+                <MudTh colspan="6">
+                    <MudText Typo="Typo.subtitle2">
+                        <b>@context.Key</b> — @context.Items.Count() hallazgos
+                    </MudText>
+                </MudTh>
+            </GroupHeaderTemplate>
+            <RowTemplate>
+                <MudTd>@(_findings.IndexOf(context) + 1)</MudTd>
+                <MudTd Style="max-width:300px; white-space:normal">@context.Description</MudTd>
+                <MudTd>@context.Category</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@SevColor(context.Severity)" Size="Size.Small">
+                        @context.Severity
+                    </MudChip>
+                </MudTd>
+                <MudTd>
+                    @foreach (var sid in context.AffectedStores.Take(6))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="ma-0 mr-1">@sid</MudChip>
+                    }
+                    @if (context.AffectedStores.Count > 6)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Dark">+@(context.AffectedStores.Count - 6)</MudChip>
+                    }
+                </MudTd>
+                <MudTd Style="max-width:280px; white-space:normal">@context.Action</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+}
+
+@code {
+    private bool _loading = true;
+    private List<SystemicFinding> _findings = [];
+
+    private TableGroupDefinition<SystemicFinding> _groupDefinition = new()
+    {
+        GroupName = "Severidad",
+        Indentation = false,
+        Expandable = true,
+        IsInitiallyExpanded = true,
+        Selector = f => f.Severity
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _findings = await AuditSvc.GetSystemicFindingsAsync();
+        _loading = false;
+    }
+
+    private Color SevColor(string severity) => severity switch
+    {
+        "CRÍTICO"  => Color.Error,
+        "ALTO"     => Color.Warning,
+        "MODERADO" => Color.Default,
+        _          => Color.Default
+    };
+}

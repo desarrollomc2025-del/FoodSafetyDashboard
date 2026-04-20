@@ -1,0 +1,188 @@
+@page "/tiendas"
+@rendermode InteractiveServer
+@inject AuditService AuditSvc
+@inject ExportService ExportSvc
+@inject IJSRuntime JS
+
+<PageTitle>Detalle por Tienda</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Detalle por Tienda</MudText>
+
+<!-- Filtros -->
+<MudPaper Class="pa-3 mb-4" Elevation="1">
+    <MudGrid AlignItems="Center">
+        <MudItem xs="12" sm="3">
+            <MudSelect T="int?" Label="Año" @bind-Value="_year" Clearable="true">
+                @foreach (var y in _years)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)y)">@y</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudSelect T="string?" Label="Grupo" @bind-Value="_groupFilter" Clearable="true">
+                <MudSelectItem T="string?" Value="@("CLÁSICA")">CLÁSICA</MudSelectItem>
+                <MudSelectItem T="string?" Value="@("DEX")">DEX</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudSelect T="string?" Label="Resultado" @bind-Value="_resultFilter" Clearable="true">
+                <MudSelectItem T="string?" Value="@("Aprobado")">Aprobado</MudSelectItem>
+                <MudSelectItem T="string?" Value="@("No aprobado")">No aprobado</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudStack Row="true">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadData">Aplicar</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.Download"
+                           OnClick="ExportExcel">
+                    Excel
+                </MudButton>
+            </MudStack>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_errorMsg is not null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMsg</MudAlert>
+}
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudPaper Elevation="2">
+        <MudTable Items="FilteredRows" Dense="true" Striped="true" Hover="true"
+                  SortLabel="Ordenar" AllowUnsorted="false" FixedHeader="true" Height="600px">
+            <HeaderContent>
+                <MudTh><MudTableSortLabel SortBy="new Func<StoreRow,object>(x=>x.StoreId)">Tienda</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<StoreRow,object>(x=>x.Group)">Grupo</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<StoreRow,object>(x=>x.AuditDate ?? DateTime.MinValue)">Fecha</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel InitialDirection="SortDirection.Descending" SortBy="new Func<StoreRow,object>(x=>x.Score)">Nota %</MudTableSortLabel></MudTh>
+                <MudTh>Resultado</MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<StoreRow,object>(x=>x.CriticalViolations)">Críticos</MudTableSortLabel></MudTh>
+                <MudTh>Fact. Riesgo</MudTh>
+                <MudTh>Limpieza</MudTh>
+                <MudTh>Mantenimiento</MudTh>
+                <MudTh>Almacenaje</MudTh>
+                <MudTh>Conocimiento</MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<StoreRow,object>(x=>x.TotalViolations)">Fallos</MudTableSortLabel></MudTh>
+                <MudTh>Puntos</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd><b>@context.StoreId</b></MudTd>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(context.Group == "DEX" ? Color.Info : Color.Default)">
+                        @context.Group
+                    </MudChip>
+                </MudTd>
+                <MudTd>@context.AuditDate?.ToString("yyyy-MM-dd")</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@ScoreColor(context.Score)" Size="Size.Small">
+                        @context.Score.ToString("F1")%
+                    </MudChip>
+                </MudTd>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(context.Result == "Aprobado" ? Color.Success : Color.Error)">
+                        @context.Result
+                    </MudChip>
+                </MudTd>
+                <MudTd>
+                    @if (context.CriticalViolations > 0)
+                    {
+                        <MudChip T="string" Color="Color.Error" Size="Size.Small">@context.CriticalViolations</MudChip>
+                    }
+                    else
+                    {
+                        <MudText>0</MudText>
+                    }
+                </MudTd>
+                <MudTd>@FormatSection(context.Sections.GetValueOrDefault("Fact. Riesgo"))</MudTd>
+                <MudTd>@FormatSection(context.Sections.GetValueOrDefault("Limpieza"))</MudTd>
+                <MudTd>@FormatSection(context.Sections.GetValueOrDefault("Mantenimiento"))</MudTd>
+                <MudTd>@FormatSection(context.Sections.GetValueOrDefault("Almacenaje"))</MudTd>
+                <MudTd>@FormatSection(context.Sections.GetValueOrDefault("Conocimiento"))</MudTd>
+                <MudTd>@context.TotalViolations</MudTd>
+                <MudTd>@context.Points</MudTd>
+            </RowTemplate>
+            <FooterContent>
+                <MudTd colspan="3"><b>PROMEDIO</b></MudTd>
+                <MudTd>
+                    <b>@(FilteredRows.Any() ? FilteredRows.Average(r => r.Score).ToString("F1") : "0")%</b>
+                </MudTd>
+                <MudTd colspan="9"></MudTd>
+            </FooterContent>
+        </MudTable>
+    </MudPaper>
+}
+
+@code {
+    private bool _loading = true;
+    private string? _errorMsg;
+    private List<StoreRow> _rows = [];
+    private List<int> _years = [];
+    private int? _year;
+    private string? _groupFilter;
+    private string? _resultFilter;
+
+    private IEnumerable<StoreRow> FilteredRows => _rows
+        .Where(r => _groupFilter == null || r.Group == _groupFilter)
+        .Where(r => _resultFilter == null || r.Result == _resultFilter);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _years = await AuditSvc.GetAvailableYearsAsync();
+            StateHasChanged();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            _errorMsg = ex.Message;
+            _loading = false;
+        }
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        _errorMsg = null;
+        StateHasChanged();
+        try
+        {
+            _rows = await AuditSvc.GetStoreRowsAsync(_year);
+        }
+        catch (Exception ex)
+        {
+            _errorMsg = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ExportExcel()
+    {
+        var bytes = await ExportSvc.ExportStoreDetailAsync(_year);
+        var b64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("downloadFileFromBase64", b64, "Reporte_Tiendas.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
+
+    private static string FormatSection(double? val) => val.HasValue ? $"{val.Value:F1}%" : "—";
+
+    private Color ScoreColor(double score) => score switch
+    {
+        >= 95 => Color.Success,
+        >= 85 => Color.Warning,
+        _     => Color.Error
+    };
+}

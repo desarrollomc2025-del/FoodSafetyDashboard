@@ -1,0 +1,419 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@inject AuditService AuditSvc
+@inject ExportService ExportSvc
+@inject IJSRuntime JS
+@using ApexCharts
+@using MudColor = MudBlazor.Color
+@using MudSize = MudBlazor.Size
+
+<PageTitle>Resumen Ejecutivo</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Resumen Ejecutivo</MudText>
+
+<!-- Filtros -->
+<MudPaper Class="pa-3 mb-4" Elevation="1">
+    <MudGrid AlignItems="Center">
+        <MudItem xs="12" sm="3">
+            <MudSelect T="int?" Label="Año" Value="_year" ValueChanged="OnYearChanged" Clearable="true">
+                @foreach (var y in _years)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)y)">@y</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudSelect T="int?" Label="Mes" @bind-Value="_month" Clearable="true">
+                @foreach (var m in _availableMonths)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)m)">@_monthNames[m]</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="2">
+            <MudStack Row="true">
+                <MudButton Variant="Variant.Filled" Color="MudColor.Primary" OnClick="LoadData">
+                    Aplicar
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="MudColor.Success"
+                           StartIcon="@Icons.Material.Filled.Download"
+                           OnClick="ExportExcel">
+                    Excel
+                </MudButton>
+            </MudStack>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_errorMsg is not null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMsg</MudAlert>
+}
+
+@if (_loading)
+{
+    <MudProgressLinear Color="MudColor.Primary" Indeterminate="true" Class="mb-4" />
+}
+else if (_kpis is not null)
+{
+    <!-- KPI Cards -->
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="6" md="2">
+            <MudPaper Class="pa-4 text-center" Elevation="2">
+                <MudIcon Icon="@Icons.Material.Filled.Store" Color="MudColor.Primary" Size="MudSize.Large" />
+                <MudText Typo="Typo.h4" Color="MudColor.Primary"><b>@_kpis.TotalStores</b></MudText>
+                <MudText Typo="Typo.body2">Tiendas Evaluadas</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudPaper Class="pa-4 text-center" Elevation="2">
+                <MudIcon Icon="@Icons.Material.Filled.Star" Color="MudColor.Warning" Size="MudSize.Large" />
+                <MudText Typo="Typo.h4" Color="MudColor.Warning"><b>@_kpis.GlobalScore.ToString("F1")%</b></MudText>
+                <MudText Typo="Typo.body2">Nota Global</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudPaper Class="pa-4 text-center" Elevation="2">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="MudColor.Success" Size="MudSize.Large" />
+                <MudText Typo="Typo.h4" Color="MudColor.Success"><b>@_kpis.Approved</b></MudText>
+                <MudText Typo="Typo.body2">Aprobadas</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudPaper Class="pa-4 text-center" Elevation="2">
+                <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="MudColor.Error" Size="MudSize.Large" />
+                <MudText Typo="Typo.h4" Color="MudColor.Error"><b>@_kpis.NotApproved</b></MudText>
+                <MudText Typo="Typo.body2">No Aprobadas</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudPaper Class="pa-4 text-center" Elevation="2">
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Color="MudColor.Error" Size="MudSize.Large" />
+                <MudText Typo="Typo.h4" Color="MudColor.Error"><b>@_kpis.CriticalStores</b></MudText>
+                <MudText Typo="Typo.body2">Con Críticos</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudPaper Class="pa-4 text-center" Elevation="2">
+                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="MudColor.Info" Size="MudSize.Large" />
+                <MudText Typo="Typo.h4" Color="MudColor.Info">
+                    <b>@(_kpis.TotalStores > 0 ? (_kpis.Approved * 100.0 / _kpis.TotalStores).ToString("F0") : "0")%</b>
+                </MudText>
+                <MudText Typo="Typo.body2">% Aprobación</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Gráficas fila 1 -->
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Nota Global por Grupo</b></MudText>
+                <ApexChart TItem="GroupSummary" Options="_groupChartOptions" Height="280">
+                    <ApexPointSeries TItem="GroupSummary"
+                                     Items="_groups"
+                                     SeriesType="SeriesType.Bar"
+                                     Name="Nota %"
+                                     XValue="@(g => g.Group)"
+                                     YValue="@(g => (decimal)Math.Round(g.AvgScore, 1))"
+                                     Color="#2E75B6" />
+                </ApexChart>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Promedio por Sección</b></MudText>
+                <ApexChart TItem="SectionPoint" Options="_sectionChartOptions" Height="280">
+                    <ApexPointSeries TItem="SectionPoint"
+                                     Items="_sectionPoints"
+                                     SeriesType="SeriesType.Bar"
+                                     Name="Score %"
+                                     XValue="@(s => s.Section)"
+                                     YValue="@(s => (decimal)Math.Round(s.Score, 1))"
+                                     Color="#70AD47" />
+                </ApexChart>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Gráfica: Secciones CLÁSICA vs DEX -->
+    <MudGrid Class="mb-4">
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Nota por Sección — CLÁSICA vs DEX</b></MudText>
+                <ApexChart TItem="SectionGroupPoint" Options="_sectionGroupOptions" Height="320">
+                    <ApexPointSeries TItem="SectionGroupPoint"
+                                     Items="@(_sectionGroupPoints.Where(p => p.Group == "CLÁSICA").ToList())"
+                                     SeriesType="SeriesType.Bar"
+                                     Name="CLÁSICA"
+                                     XValue="@(p => p.Section)"
+                                     YValue="@(p => (decimal)Math.Round(p.Score, 1))"
+                                     Color="#2E75B6" />
+                    <ApexPointSeries TItem="SectionGroupPoint"
+                                     Items="@(_sectionGroupPoints.Where(p => p.Group == "DEX").ToList())"
+                                     SeriesType="SeriesType.Bar"
+                                     Name="DEX"
+                                     XValue="@(p => p.Section)"
+                                     YValue="@(p => (decimal)Math.Round(p.Score, 1))"
+                                     Color="#ED7D31" />
+                </ApexChart>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Gráfica: Ranking de tiendas -->
+    <MudGrid Class="mb-4">
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Nota por Tienda (mayor a menor)</b></MudText>
+                <ApexChart TItem="StoreRow" Options="_storeRankOptions" Height="@(_rows.Count * 26 + 60)">
+                    <ApexPointSeries TItem="StoreRow"
+                                     Items="@(_rows.Where(r => r.Group == "CLÁSICA").ToList())"
+                                     SeriesType="SeriesType.Bar"
+                                     Name="CLÁSICA"
+                                     XValue="@(r => r.StoreId.ToString())"
+                                     YValue="@(r => (decimal)Math.Round(r.Score, 1))"
+                                     Color="#2E75B6" />
+                    <ApexPointSeries TItem="StoreRow"
+                                     Items="@(_rows.Where(r => r.Group == "DEX").ToList())"
+                                     SeriesType="SeriesType.Bar"
+                                     Name="DEX"
+                                     XValue="@(r => r.StoreId.ToString())"
+                                     YValue="@(r => (decimal)Math.Round(r.Score, 1))"
+                                     Color="#ED7D31" />
+                </ApexChart>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Tabla: Resultados por grupo -->
+    <MudPaper Class="pa-4 mb-4" Elevation="2">
+        <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Resultados por Grupo</b></MudText>
+        <MudTable Items="_groups" Dense="true" Striped="true" Hover="true" Bordered="true">
+            <HeaderContent>
+                <MudTh>Grupo</MudTh>
+                <MudTh>Tiendas</MudTh>
+                <MudTh>Nota %</MudTh>
+                <MudTh>Fact. Riesgo</MudTh>
+                <MudTh>Limpieza</MudTh>
+                <MudTh>Mantenimiento</MudTh>
+                <MudTh>Almacenaje</MudTh>
+                <MudTh>Conocimiento</MudTh>
+                <MudTh>Aprobadas</MudTh>
+                <MudTh>No Aprobadas</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd><b>@context.Group</b></MudTd>
+                <MudTd>@context.Count</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@ScoreColor(context.AvgScore)" Size="MudSize.Small">
+                        @context.AvgScore.ToString("F1")%
+                    </MudChip>
+                </MudTd>
+                <MudTd>@context.SectionAverages.GetValueOrDefault("Fact. Riesgo").ToString("F1")%</MudTd>
+                <MudTd>@context.SectionAverages.GetValueOrDefault("Limpieza").ToString("F1")%</MudTd>
+                <MudTd>@context.SectionAverages.GetValueOrDefault("Mantenimiento").ToString("F1")%</MudTd>
+                <MudTd>@context.SectionAverages.GetValueOrDefault("Almacenaje").ToString("F1")%</MudTd>
+                <MudTd>@context.SectionAverages.GetValueOrDefault("Conocimiento").ToString("F1")%</MudTd>
+                <MudTd><MudText Color="MudColor.Success">@context.Approved</MudText></MudTd>
+                <MudTd><MudText Color="MudColor.Error">@context.NotApproved</MudText></MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+
+    <!-- Tablas: Tiendas por Departamento y Municipio -->
+    @if (_departamentos.Count > 0 || _municipios.Count > 0)
+    {
+        <MudGrid Class="mb-4">
+            @if (_departamentos.Count > 0)
+            {
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Tiendas Evaluadas por Departamento</b></MudText>
+                        <MudTable Items="_departamentos" Dense="true" Striped="true" Hover="true" Bordered="true">
+                            <HeaderContent>
+                                <MudTh>Departamento</MudTh>
+                                <MudTh>Tiendas</MudTh>
+                                <MudTh>Nota %</MudTh>
+                                <MudTh>Aprobadas</MudTh>
+                                <MudTh>No Aprobadas</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd><b>@context.Name</b></MudTd>
+                                <MudTd>@context.Count</MudTd>
+                                <MudTd>
+                                    <MudChip T="string" Color="@ScoreColor(context.AvgScore)" Size="MudSize.Small">
+                                        @context.AvgScore.ToString("F1")%
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd><MudText Color="MudColor.Success">@context.Approved</MudText></MudTd>
+                                <MudTd><MudText Color="MudColor.Error">@context.NotApproved</MudText></MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+                </MudItem>
+            }
+            @if (_municipios.Count > 0)
+            {
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Tiendas Evaluadas por Municipio</b></MudText>
+                        <MudTable Items="_municipios" Dense="true" Striped="true" Hover="true" Bordered="true">
+                            <HeaderContent>
+                                <MudTh>Municipio</MudTh>
+                                <MudTh>Tiendas</MudTh>
+                                <MudTh>Nota %</MudTh>
+                                <MudTh>Aprobadas</MudTh>
+                                <MudTh>No Aprobadas</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd><b>@context.Name</b></MudTd>
+                                <MudTd>@context.Count</MudTd>
+                                <MudTd>
+                                    <MudChip T="string" Color="@ScoreColor(context.AvgScore)" Size="MudSize.Small">
+                                        @context.AvgScore.ToString("F1")%
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd><MudText Color="MudColor.Success">@context.Approved</MudText></MudTd>
+                                <MudTd><MudText Color="MudColor.Error">@context.NotApproved</MudText></MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private string? _errorMsg;
+    private KpiSummary? _kpis;
+    private List<GroupSummary> _groups = [];
+    private List<SectionPoint> _sectionPoints = [];
+    private List<SectionGroupPoint> _sectionGroupPoints = [];
+    private List<StoreRow> _rows = [];
+    private List<LocationSummary> _departamentos = [];
+    private List<LocationSummary> _municipios = [];
+    private List<int> _years = [];
+    private int? _year;
+    private int? _month;
+
+    private static readonly string[] SectionCols =
+        ["Fact. Riesgo", "Limpieza", "Mantenimiento", "Almacenaje", "Conocimiento"];
+
+    private static readonly Dictionary<int, string> _monthNames = new()
+    {
+        {1,"Enero"},{2,"Febrero"},{3,"Marzo"},{4,"Abril"},{5,"Mayo"},{6,"Junio"},
+        {7,"Julio"},{8,"Agosto"},{9,"Septiembre"},{10,"Octubre"},{11,"Noviembre"},{12,"Diciembre"}
+    };
+
+    private List<int> _availableMonths = [];
+
+    private ApexChartOptions<GroupSummary> _groupChartOptions = new()
+    {
+        Chart = new Chart { Toolbar = new Toolbar { Show = false } },
+        Yaxis = [new YAxis { Min = 50, Max = 100, Labels = new YAxisLabels { Formatter = "function(v){return v+'%'}" } }],
+        PlotOptions = new PlotOptions { Bar = new PlotOptionsBar { BorderRadius = 4 } },
+        DataLabels = new DataLabels { Enabled = true, Formatter = "function(v){return v+'%'}" },
+    };
+
+    private ApexChartOptions<SectionPoint> _sectionChartOptions = new()
+    {
+        Chart = new Chart { Toolbar = new Toolbar { Show = false } },
+        Yaxis = [new YAxis { Min = 50, Max = 100, Labels = new YAxisLabels { Formatter = "function(v){return v+'%'}" } }],
+        PlotOptions = new PlotOptions { Bar = new PlotOptionsBar { BorderRadius = 4 } },
+        DataLabels = new DataLabels { Enabled = true, Formatter = "function(v){return v+'%'}" },
+    };
+
+    private ApexChartOptions<SectionGroupPoint> _sectionGroupOptions = new()
+    {
+        Chart = new Chart { Toolbar = new Toolbar { Show = false } },
+        Yaxis = [new YAxis { Min = 50, Max = 100, Labels = new YAxisLabels { Formatter = "function(v){return v+'%'}" } }],
+        PlotOptions = new PlotOptions { Bar = new PlotOptionsBar { BorderRadius = 3 } },
+        DataLabels = new DataLabels { Enabled = true, Formatter = "function(v){return v+'%'}" },
+    };
+
+    private ApexChartOptions<StoreRow> _storeRankOptions = new()
+    {
+        Chart = new Chart { Toolbar = new Toolbar { Show = false } },
+        PlotOptions = new PlotOptions { Bar = new PlotOptionsBar { Horizontal = true, BorderRadius = 2 } },
+        Xaxis = new XAxis { Min = 50, Max = 100 },
+        DataLabels = new DataLabels { Enabled = true, Formatter = "function(v){return v+'%'}" },
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _years = await AuditSvc.GetAvailableYearsAsync();
+            if (_years.Count > 0)
+                _year = _years[0];
+            _availableMonths = await AuditSvc.GetAvailableMonthsAsync(_year);
+            if (_availableMonths.Count > 0)
+                _month = _availableMonths[^1];
+            StateHasChanged();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            _errorMsg = ex.Message;
+            _loading = false;
+        }
+    }
+
+    private async Task OnYearChanged(int? value)
+    {
+        _year = value;
+        _availableMonths = await AuditSvc.GetAvailableMonthsAsync(_year);
+        if (_month.HasValue && !_availableMonths.Contains(_month.Value))
+            _month = _availableMonths.Count > 0 ? _availableMonths[^1] : null;
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        _errorMsg = null;
+        StateHasChanged();
+        try
+        {
+            _kpis          = await AuditSvc.GetKpiSummaryAsync(_year, _month);
+            _groups        = await AuditSvc.GetGroupSummariesAsync(_year, _month);
+            _rows          = await AuditSvc.GetStoreRowsAsync(_year, _month);
+            _departamentos = await AuditSvc.GetDepartamentoSummariesAsync(_year, _month);
+            _municipios    = await AuditSvc.GetMunicipioSummariesAsync(_year, _month);
+            _sectionPoints = _kpis.SectionAverages
+                .Select(kv => new SectionPoint(kv.Key, kv.Value)).ToList();
+            _sectionGroupPoints = _groups.SelectMany(g =>
+                SectionCols.Select(sec =>
+                    new SectionGroupPoint(sec, g.Group, g.SectionAverages.GetValueOrDefault(sec)))
+            ).ToList();
+        }
+        catch (Exception ex)
+        {
+            _errorMsg = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ExportExcel()
+    {
+        var bytes = await ExportSvc.ExportStoreDetailAsync(_year, _month);
+        var b64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("downloadFileFromBase64", b64, "Reporte_FoodSafety.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
+
+    private MudColor ScoreColor(double score) => score switch
+    {
+        >= 95 => MudColor.Success,
+        >= 85 => MudColor.Warning,
+        _     => MudColor.Error
+    };
+
+    private record SectionPoint(string Section, double Score);
+    private record SectionGroupPoint(string Section, string Group, double Score);
+}

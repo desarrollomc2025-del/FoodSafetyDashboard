@@ -1,0 +1,115 @@
+@page "/plan-accion"
+@rendermode InteractiveServer
+@inject AuditService AuditSvc
+
+<PageTitle>Plan de Acción</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Plan de Acción Correctivo</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <!-- Resumen de estado -->
+    <MudGrid Class="mb-4">
+        <MudItem xs="6" sm="3">
+            <MudPaper Class="pa-3 text-center" Elevation="2">
+                <MudText Typo="Typo.h4"><b>@_items.Count</b></MudText>
+                <MudText Typo="Typo.body2">Total Acciones</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudPaper Class="pa-3 text-center" Elevation="2">
+                <MudText Typo="Typo.h4" Color="Color.Error">
+                    <b>@_items.Count(i => i.Priority is "INMEDIATO" or "CRÍTICO")</b>
+                </MudText>
+                <MudText Typo="Typo.body2">Inmediatas / Críticas</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudPaper Class="pa-3 text-center" Elevation="2">
+                <MudText Typo="Typo.h4" Color="Color.Warning">
+                    <b>@_items.Count(i => i.Priority == "ALTO")</b>
+                </MudText>
+                <MudText Typo="Typo.body2">Prioridad Alta</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudPaper Class="pa-3 text-center" Elevation="2">
+                <MudText Typo="Typo.h4" Color="Color.Success">
+                    <b>@_items.Count(i => i.Status == "Completado")</b>
+                </MudText>
+                <MudText Typo="Typo.body2">Completadas</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudPaper Elevation="2">
+        <MudTable Items="_items" Dense="true" Striped="true" Hover="true" FixedHeader="true" Height="600px">
+            <HeaderContent>
+                <MudTh>#</MudTh>
+                <MudTh>Acción</MudTh>
+                <MudTh>Tiendas</MudTh>
+                <MudTh>Prioridad</MudTh>
+                <MudTh>Plazo</MudTh>
+                <MudTh>Responsable</MudTh>
+                <MudTh>Estado</MudTh>
+                <MudTh>Observaciones</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Index</MudTd>
+                <MudTd Style="max-width:280px; white-space:normal">@context.Action</MudTd>
+                <MudTd Style="max-width:140px; white-space:normal">@context.Stores</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@PriorityColor(context.Priority)" Size="Size.Small">
+                        @context.Priority
+                    </MudChip>
+                </MudTd>
+                <MudTd>@context.Deadline</MudTd>
+                <MudTd>@context.Responsible</MudTd>
+                <MudTd>
+                    <MudSelect T="string" Value="@context.Status"
+                               ValueChanged="@(v => UpdateStatus(context, v))"
+                               Dense="true" Variant="Variant.Outlined">
+                        <MudSelectItem T="string" Value="@("Pendiente")">Pendiente</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("En curso")">En curso</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Acción iniciada")">Acción iniciada</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Completado")">Completado</MudSelectItem>
+                    </MudSelect>
+                </MudTd>
+                <MudTd Style="max-width:260px; white-space:normal; font-size:0.78rem">
+                    @context.Notes
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+}
+
+@code {
+    private bool _loading = true;
+    private List<ActionItem> _items = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _items = await AuditSvc.GetActionPlanAsync();
+        _loading = false;
+    }
+
+    private void UpdateStatus(ActionItem item, string newStatus)
+    {
+        var idx = _items.IndexOf(item);
+        if (idx >= 0)
+            _items[idx] = item with { Status = newStatus };
+    }
+
+    private Color PriorityColor(string priority) => priority switch
+    {
+        "INMEDIATO" => Color.Error,
+        "CRÍTICO"   => Color.Error,
+        "ALTO"      => Color.Warning,
+        "MODERADO"  => Color.Default,
+        _           => Color.Default
+    };
+}

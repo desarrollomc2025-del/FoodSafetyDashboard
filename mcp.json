@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "sqlserver": {
+      "command": "mcp-sqlserver",
+      "env": {
+        "SQLSERVER_HOST": "FEIDTIDPD01",
+        "SQLSERVER_DATABASE": "FoodSafetyAudits",
+        "SQLSERVER_TRUSTED_CONNECTION": "true"
+      }
+    }
+  }
+}

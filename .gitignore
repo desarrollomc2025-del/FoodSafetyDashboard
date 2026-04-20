@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+.venv/
+venv/
+
+# PDFs y datos generados
+pdfs/in/
+pdfs/out/
+pdfs/error/
+pdfs/audits.json
+pdfs/all_inserts.sql
+pdfs/all_updates.sql
+pdfs/errors.log
+
+# Archivos de salida del parser (generados localmente)
+*.sql
+*.xlsx
+
+# .NET build artifacts
+FoodSafetyDashboard/bin/
+FoodSafetyDashboard/obj/
+
+# Secrets y configuración local
+FoodSafetyDashboard/appsettings.Development.json
+
+# Claude Code
+.claude/
+
+# Editor / OS
+.vs/
+.vscode/
+*.user
+*.suo
+Thumbs.db
+.DS_Store
