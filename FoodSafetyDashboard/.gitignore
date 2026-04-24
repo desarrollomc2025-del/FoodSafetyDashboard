@@ -1,0 +1,9 @@
+# SSH Keys
+*.pem
+*.ppk
+
+# Zip archives
+*.zip
+
+# Build output
+publish/
