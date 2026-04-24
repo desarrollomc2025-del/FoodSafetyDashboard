@@ -1,0 +1,205 @@
+@page "/mantenimiento"
+@rendermode InteractiveServer
+@inject PdfProcessingService PdfSvc
+
+<PageTitle>Carga de Auditorías</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Carga de Auditorías PDF</MudText>
+
+@* ── 1. Upload ─────────────────────────────────────────────── *@
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudText Typo="Typo.h6" GutterBottom="true">1. Subir archivos PDF</MudText>
+
+    <InputFile id="pdfInput" multiple accept=".pdf"
+               OnChange="OnFilesSelected" style="display:none" />
+
+    <MudGrid AlignItems="Center">
+        <MudItem xs="12" sm="8">
+            <label for="pdfInput" style="cursor:pointer">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.UploadFile"
+                           HtmlTag="span" Style="cursor:pointer; pointer-events:none">
+                    Seleccionar PDFs
+                </MudButton>
+            </label>
+            @if (_selectedFiles.Count > 0)
+            {
+                <MudText Typo="Typo.body2" Class="ml-3 d-inline-flex align-center">
+                    @_selectedFiles.Count archivo(s) seleccionado(s)
+                </MudText>
+            }
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.CloudUpload"
+                       OnClick="UploadFiles"
+                       Disabled="@(_selectedFiles.Count == 0 || _uploading)"
+                       FullWidth="true">
+                @if (_uploading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Subir PDFs
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+
+    @if (!string.IsNullOrEmpty(_uploadMessage))
+    {
+        <MudAlert Severity="@_uploadSeverity" Class="mt-3" Dense="true">@_uploadMessage</MudAlert>
+    }
+</MudPaper>
+
+@* ── 2. Cola ───────────────────────────────────────────────── *@
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudGrid Justify="Justify.SpaceBetween" AlignItems="Center" Class="mb-3">
+        <MudItem>
+            <MudText Typo="Typo.h6">
+                2. Cola de procesamiento
+                <MudChip T="string" Size="Size.Small" Color="@(_pendingFiles.Count > 0 ? Color.Warning : Color.Default)"
+                         Class="ml-1">
+                    @_pendingFiles.Count pendiente(s)
+                </MudChip>
+            </MudText>
+        </MudItem>
+        <MudItem Class="d-flex gap-2">
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                           OnClick="RefreshPending" Title="Actualizar lista" />
+            <MudButton Variant="Variant.Filled" Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.PlayArrow"
+                       OnClick="RunParser"
+                       Disabled="@(_pendingFiles.Count == 0 || _running)"
+                       Size="Size.Medium">
+                @if (_running)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Ejecutar Parser
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+
+    @if (_pendingFiles.Count > 0)
+    {
+        <MudTable Items="_pendingFiles" Dense="true" Striped="true" Hover="true"
+                  FixedHeader="true" Height="300px">
+            <HeaderContent>
+                <MudTh Style="width:50px">#</MudTh>
+                <MudTh>Archivo</MudTh>
+                <MudTh Style="width:120px">Estado</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@(_pendingFiles.IndexOf(context) + 1)</MudTd>
+                <MudTd>
+                    <MudIcon Icon="@Icons.Material.Filled.PictureAsPdf"
+                             Color="Color.Error" Size="Size.Small" Class="mr-1" />
+                    @context
+                </MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined">
+                        Pendiente
+                    </MudChip>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else
+    {
+        <MudText Color="Color.Secondary" Align="Align.Center" Class="pa-4">
+            No hay archivos PDF en la cola. Sube archivos para procesar.
+        </MudText>
+    }
+</MudPaper>
+
+@* ── 3. Resultado ─────────────────────────────────────────── *@
+@if (!string.IsNullOrEmpty(_runOutput))
+{
+    <MudPaper Class="pa-4" Elevation="2">
+        <MudText Typo="Typo.h6" GutterBottom="true">3. Resultado de ejecución</MudText>
+
+        <MudAlert Severity="@(_exitCode == 0 ? Severity.Success : Severity.Error)"
+                  Class="mb-3" Dense="true">
+            @(_exitCode == 0
+                ? "Procesamiento completado. Los datos fueron insertados en la base de datos."
+                : $"El parser terminó con error (código {_exitCode}). Revisa el log.")
+        </MudAlert>
+
+        <pre style="background:#1e1e1e;color:#d4d4d4;padding:16px;border-radius:4px;
+                    overflow-x:auto;font-size:0.82rem;max-height:420px;overflow-y:auto;
+                    white-space:pre-wrap;word-break:break-all">@_runOutput</pre>
+    </MudPaper>
+}
+
+@code {
+    private List<IBrowserFile> _selectedFiles = [];
+    private List<string> _pendingFiles = [];
+    private bool _uploading;
+    private bool _running;
+    private string _uploadMessage = string.Empty;
+    private Severity _uploadSeverity = Severity.Info;
+    private string _runOutput = string.Empty;
+    private int _exitCode;
+
+    protected override void OnInitialized() => RefreshPending();
+
+    private void OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        _selectedFiles = [.. e.GetMultipleFiles(200)];
+        _uploadMessage = string.Empty;
+    }
+
+    private async Task UploadFiles()
+    {
+        _uploading = true;
+        _uploadMessage = string.Empty;
+        StateHasChanged();
+
+        var ok = 0;
+        var failed = 0;
+        var failNames = new List<string>();
+
+        foreach (var file in _selectedFiles)
+        {
+            try
+            {
+                await PdfSvc.SaveFileAsync(file);
+                ok++;
+            }
+            catch
+            {
+                failed++;
+                failNames.Add(file.Name);
+            }
+        }
+
+        _selectedFiles = [];
+        RefreshPending();
+
+        _uploadSeverity = failed == 0 ? Severity.Success : Severity.Warning;
+        _uploadMessage = failed == 0
+            ? $"{ok} archivo(s) subido(s) correctamente."
+            : $"Subidos: {ok}  |  Errores: {failed} ({string.Join(", ", failNames)})";
+
+        _uploading = false;
+    }
+
+    private async Task RunParser()
+    {
+        _running = true;
+        _runOutput = string.Empty;
+        StateHasChanged();
+
+        var (output, exitCode) = await PdfSvc.RunParserAsync();
+        _runOutput = output;
+        _exitCode = exitCode;
+
+        RefreshPending();
+        _running = false;
+    }
+
+    private void RefreshPending()
+    {
+        _pendingFiles = [.. PdfSvc.GetPendingFiles()];
+        StateHasChanged();
+    }
+}

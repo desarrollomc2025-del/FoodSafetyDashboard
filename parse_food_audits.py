@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import shutil
 from pathlib import Path
@@ -660,7 +661,81 @@ def load_existing_results(output_json: Path) -> List[Dict[str, Any]]:
     return []
 
 
-def process_folder(base_folder: str) -> None:
+def db_upsert(conn_str: str, audit: Dict[str, Any], sections: List[Dict[str, Any]], findings: List[Dict[str, Any]], is_update: bool = False) -> None:
+    import pyodbc
+
+    conn = pyodbc.connect(conn_str)
+    cursor = conn.cursor()
+    try:
+        if is_update:
+            cursor.execute(
+                """UPDATE audits SET
+                    store_id=?, location=?, departamento=?, municipio=?,
+                    audit_start=?, audit_end=?, auditor=?, franchisee=?,
+                    manager_in_charge=?, points_earned=?, points_possible=?,
+                    percentage_score=?, critical_violations=?, total_violations=?,
+                    source_file=?
+                WHERE audit_id=?""",
+                (
+                    audit["store_id"], audit["location"], audit["departamento"],
+                    audit["municipio"], audit["audit_start"], audit["audit_end"],
+                    audit["auditor"], audit["franchisee"], audit["manager_in_charge"],
+                    audit["points_earned"], audit["points_possible"],
+                    audit["percentage_score"], audit["critical_violations"],
+                    audit["total_violations"], audit["source_file"],
+                    audit["audit_id"],
+                ),
+            )
+            cursor.execute("DELETE FROM audit_sections WHERE audit_id=?", (audit["audit_id"],))
+            cursor.execute("DELETE FROM audit_findings WHERE audit_id=?", (audit["audit_id"],))
+        else:
+            cursor.execute(
+                """INSERT INTO audits (audit_id, store_id, location, departamento, municipio,
+                    audit_start, audit_end, auditor, franchisee, manager_in_charge,
+                    points_earned, points_possible, percentage_score,
+                    critical_violations, total_violations, source_file)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    audit["audit_id"], audit["store_id"], audit["location"],
+                    audit["departamento"], audit["municipio"],
+                    audit["audit_start"], audit["audit_end"],
+                    audit["auditor"], audit["franchisee"], audit["manager_in_charge"],
+                    audit["points_earned"], audit["points_possible"],
+                    audit["percentage_score"], audit["critical_violations"],
+                    audit["total_violations"], audit["source_file"],
+                ),
+            )
+
+        for s in sections:
+            cursor.execute(
+                """INSERT INTO audit_sections
+                    (audit_id, section_name, points_earned, points_possible, section_score, total_violations)
+                VALUES (?,?,?,?,?,?)""",
+                (s["audit_id"], s["section_name"], s["points_earned"], s["points_possible"], s["section_score"], s["total_violations"]),
+            )
+
+        for f in findings:
+            cursor.execute(
+                """INSERT INTO audit_findings
+                    (audit_id, section_name, question_text, answer_value, points_earned,
+                     points_possible, finding_type, comment_text, evidence_page)
+                VALUES (?,?,?,?,?,?,?,?,?)""",
+                (
+                    f["audit_id"], f["section_name"], f["question_text"],
+                    f["answer_value"], f["points_earned"], f["points_possible"],
+                    f["finding_type"], f["comment_text"], f["evidence_page"],
+                ),
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def process_folder(base_folder: str, conn_str: Optional[str] = None) -> None:
     base = Path(base_folder)
     in_folder = base / "in"
     out_folder = base / "out"
@@ -692,17 +767,21 @@ def process_folder(base_folder: str) -> None:
         try:
             parsed = process_pdf(pdf_file)
             audit_id = parsed["audit"]["audit_id"]
+            is_update = audit_id in existing_index
 
-            if audit_id in existing_index:
+            if is_update:
                 existing_results[existing_index[audit_id]] = parsed
                 updates.append(parsed)
-                shutil.move(str(pdf_file), str(out_folder / pdf_file.name))
-                print(f"UPDATE: {pdf_file.name} -> audit_id {audit_id}")
             else:
                 existing_results.append(parsed)
                 existing_index[audit_id] = len(existing_results) - 1
-                shutil.move(str(pdf_file), str(out_folder / pdf_file.name))
-                print(f"OK: {pdf_file.name}")
+
+            if conn_str:
+                db_upsert(conn_str, parsed["audit"], parsed["sections"], parsed["findings"], is_update=is_update)
+
+            shutil.move(str(pdf_file), str(out_folder / pdf_file.name))
+            action = "UPDATE" if is_update else "OK"
+            print(f"{action}: {pdf_file.name} -> audit_id {audit_id}")
 
         except Exception as e:
             errors.append(f"{pdf_file.name} -> {e}")
@@ -753,4 +832,16 @@ def process_folder(base_folder: str) -> None:
 
 
 if __name__ == "__main__":
-    process_folder("./pdfs")
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Food Safety PDF Parser")
+    parser.add_argument("--pdfs", default="./pdfs", help="Carpeta base de PDFs (default: ./pdfs)")
+    parser.add_argument("--db", action="store_true", help="Insertar resultados directo a la BD")
+    args = parser.parse_args()
+
+    conn = os.environ.get("FOODSAFETY_CONN", "") if args.db else None
+    if args.db and not conn:
+        print("ERROR: --db requiere la variable de entorno FOODSAFETY_CONN con el connection string de pyodbc.")
+        raise SystemExit(1)
+
+    process_folder(args.pdfs, conn_str=conn)

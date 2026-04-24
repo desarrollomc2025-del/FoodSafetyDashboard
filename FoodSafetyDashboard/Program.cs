@@ -19,6 +19,7 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 // Servicios de la app
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<ExportService>();
+builder.Services.AddScoped<PdfProcessingService>();
 
 var app = builder.Build();
 
