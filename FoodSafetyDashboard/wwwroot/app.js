@@ -1,3 +1,5 @@
+window.clickById = (id) => document.getElementById(id)?.click();
+
 window.downloadFileFromBase64 = (base64, filename, mimeType) => {
     const link = document.createElement('a');
     link.href = `data:${mimeType};base64,${base64}`;
