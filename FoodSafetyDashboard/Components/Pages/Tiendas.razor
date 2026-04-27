@@ -140,7 +140,6 @@ else
         try
         {
             _years = await AuditSvc.GetAvailableYearsAsync();
-            StateHasChanged();
             await LoadData();
         }
         catch (Exception ex)
@@ -154,7 +153,7 @@ else
     {
         _loading = true;
         _errorMsg = null;
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
         try
         {
             _rows = await AuditSvc.GetStoreRowsAsync(_year);

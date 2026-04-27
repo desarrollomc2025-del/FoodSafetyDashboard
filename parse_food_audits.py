@@ -311,7 +311,7 @@ def extract_header(page1: str, source_file: str) -> Dict[str, Any]:
     if m:
         data["manager_in_charge"] = m.group(1).strip()
 
-    m = re.search(r"Critical Violations\s+(\d+)", page1, re.IGNORECASE)
+    m = re.search(r"Critical Violations\s+(\d+)(?!\s+\d)", page1, re.IGNORECASE)
     if m:
         data["critical_violations"] = int(m.group(1))
 

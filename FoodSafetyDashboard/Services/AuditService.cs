@@ -179,11 +179,15 @@ public class AuditService(IDbContextFactory<AppDbContext> dbFactory, IConfigurat
                     ? $"{a.PointsEarned}/{a.PointsPossible}"
                     : "";
 
+                var critViolations = a.Sections
+                    .FirstOrDefault(s => s.SectionName == "Critical Violations")
+                    ?.TotalViolations ?? a.CriticalViolations ?? 0;
+
                 return new StoreRow(
                     a.StoreId ?? 0, a.AuditId, grp,
                     a.AuditStart, score,
                     score >= ApprovalThreshold ? "Aprobado" : "No aprobado",
-                    a.CriticalViolations ?? 0,
+                    critViolations,
                     a.TotalViolations ?? 0,
                     points, sections);
             })

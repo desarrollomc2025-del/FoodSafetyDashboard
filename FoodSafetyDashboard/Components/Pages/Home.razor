@@ -299,6 +299,9 @@ else if (_kpis is not null)
     private int? _year;
     private int? _month;
 
+    private int[] year = { 2024, 2025, 2026 };
+    private int[] month = Enumerable.Range(1, 12).ToArray();
+
     private static readonly string[] SectionCols =
         ["Fact. Riesgo", "Limpieza", "Mantenimiento", "Almacenaje", "Conocimiento"];
 
@@ -346,19 +349,19 @@ else if (_kpis is not null)
     {
         try
         {
-            _years = await AuditSvc.GetAvailableYearsAsync();
-            if (_years.Count > 0)
-                _year = _years[0];
-            _availableMonths = await AuditSvc.GetAvailableMonthsAsync(_year);
-            if (_availableMonths.Count > 0)
-                _month = _availableMonths[^1];
-            StateHasChanged();
+            //var yearsTask  = AuditSvc.GetAvailableYearsAsync();
+            //var monthsTask = AuditSvc.GetAvailableMonthsAsync(null);
+            //await Task.WhenAll(yearsTask, monthsTask);
+            //_years           = yearsTask.Result;
+            //_availableMonths = monthsTask.Result;
+            _years = year.ToList();
+            _availableMonths = month.ToList();
             await LoadData();
         }
         catch (Exception ex)
         {
             _errorMsg = ex.Message;
-            _loading = false;
+            _loading  = false;
         }
     }
 
@@ -367,14 +370,13 @@ else if (_kpis is not null)
         _year = value;
         _availableMonths = await AuditSvc.GetAvailableMonthsAsync(_year);
         if (_month.HasValue && !_availableMonths.Contains(_month.Value))
-            _month = _availableMonths.Count > 0 ? _availableMonths[^1] : null;
+            _month = null;
     }
 
     private async Task LoadData()
     {
         _loading = true;
         _errorMsg = null;
-        StateHasChanged();
         try
         {
             _kpis          = await AuditSvc.GetKpiSummaryAsync(_year, _month);
