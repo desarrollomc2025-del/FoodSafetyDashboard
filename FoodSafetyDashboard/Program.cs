@@ -2,7 +2,7 @@ using FoodSafetyDashboard.Components;
 using FoodSafetyDashboard.Data;
 using FoodSafetyDashboard.Services;
 using Microsoft.EntityFrameworkCore;
-using MudBlazor.Services;
+using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,8 +15,8 @@ builder.Services.AddRazorComponents()
         options.KeepAliveInterval = TimeSpan.FromSeconds(15);
     });
 
-// MudBlazor
-builder.Services.AddMudServices();
+// Radzen
+builder.Services.AddRadzenComponents();
 
 // EF Core → SQL Server
 builder.Services.AddDbContextFactory<AppDbContext>(options =>

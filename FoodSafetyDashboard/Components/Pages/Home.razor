@@ -1,114 +1,89 @@
-﻿@page "/"
+@page "/"
 @rendermode InteractiveServer
 @inject AuditService AuditSvc
 @inject ExportService ExportSvc
 @inject IJSRuntime JS
 @using ApexCharts
-@using MudColor = MudBlazor.Color
-@using MudSize = MudBlazor.Size
 
 <PageTitle>Resumen Ejecutivo</PageTitle>
 
-<MudText Typo="Typo.h5" Class="mb-4">Resumen Ejecutivo</MudText>
+<RadzenText TextStyle="TextStyle.H5" class="rz-mb-4">Resumen Ejecutivo</RadzenText>
 
-<!-- Filtros -->
-<MudPaper Class="pa-3 mb-4" Elevation="1">
-    <MudGrid AlignItems="Center">
-        <MudItem xs="12" sm="3">
-            <MudSelect T="int?" Label="Año" Value="_year" ValueChanged="OnYearChanged" Clearable="true">
-                @foreach (var y in _years)
-                {
-                    <MudSelectItem T="int?" Value="@((int?)y)">@y</MudSelectItem>
-                }
-            </MudSelect>
-        </MudItem>
-        <MudItem xs="12" sm="3">
-            <MudSelect T="int?" Label="Mes" @bind-Value="_month" Clearable="true">
-                @foreach (var m in _availableMonths)
-                {
-                    <MudSelectItem T="int?" Value="@((int?)m)">@_monthNames[m]</MudSelectItem>
-                }
-            </MudSelect>
-        </MudItem>
-        <MudItem xs="12" sm="2">
-            <MudStack Row="true">
-                <MudButton Variant="Variant.Filled" Color="MudColor.Primary" OnClick="LoadData">
-                    Aplicar
-                </MudButton>
-                <MudButton Variant="Variant.Outlined" Color="MudColor.Success"
-                           StartIcon="@Icons.Material.Filled.Download"
-                           OnClick="ExportExcel">
-                    Excel
-                </MudButton>
-            </MudStack>
-        </MudItem>
-    </MudGrid>
-</MudPaper>
+<RadzenCard class="rz-mb-4">
+    <RadzenStack Orientation="Radzen.Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="12px" Wrap="FlexWrap.Wrap">
+        <RadzenDropDown @bind-Value="_year" Data="@_years"
+                        AllowClear="true" Placeholder="Año" Style="width:130px"
+                        Change="OnYearChanged" />
+        <RadzenDropDown @bind-Value="_month" Data="@_monthOptions"
+                        TextProperty="Text" ValueProperty="Value"
+                        AllowClear="true" Placeholder="Mes" Style="width:150px" />
+        <RadzenButton Text="Aplicar" ButtonStyle="ButtonStyle.Primary" Click="LoadData" />
+        <RadzenButton Text="Excel" ButtonStyle="ButtonStyle.Success" Icon="download" Click="ExportExcel" />
+    </RadzenStack>
+</RadzenCard>
 
 @if (_errorMsg is not null)
 {
-    <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMsg</MudAlert>
+    <RadzenAlert AlertStyle="AlertStyle.Danger" class="rz-mb-4">@_errorMsg</RadzenAlert>
 }
 
 @if (_loading)
 {
-    <MudProgressLinear Color="MudColor.Primary" Indeterminate="true" Class="mb-4" />
+    <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" class="rz-mb-4" />
 }
 else if (_kpis is not null)
 {
-    <!-- KPI Cards -->
-    <MudGrid Class="mb-4">
-        <MudItem xs="12" sm="6" md="2">
-            <MudPaper Class="pa-4 text-center" Elevation="2">
-                <MudIcon Icon="@Icons.Material.Filled.Store" Color="MudColor.Primary" Size="MudSize.Large" />
-                <MudText Typo="Typo.h4" Color="MudColor.Primary"><b>@_kpis.TotalStores</b></MudText>
-                <MudText Typo="Typo.body2">Tiendas Evaluadas</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="2">
-            <MudPaper Class="pa-4 text-center" Elevation="2">
-                <MudIcon Icon="@Icons.Material.Filled.Star" Color="MudColor.Warning" Size="MudSize.Large" />
-                <MudText Typo="Typo.h4" Color="MudColor.Warning"><b>@_kpis.GlobalScore.ToString("F1")%</b></MudText>
-                <MudText Typo="Typo.body2">Nota Global</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="2">
-            <MudPaper Class="pa-4 text-center" Elevation="2">
-                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="MudColor.Success" Size="MudSize.Large" />
-                <MudText Typo="Typo.h4" Color="MudColor.Success"><b>@_kpis.Approved</b></MudText>
-                <MudText Typo="Typo.body2">Aprobadas</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="2">
-            <MudPaper Class="pa-4 text-center" Elevation="2">
-                <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="MudColor.Error" Size="MudSize.Large" />
-                <MudText Typo="Typo.h4" Color="MudColor.Error"><b>@_kpis.NotApproved</b></MudText>
-                <MudText Typo="Typo.body2">No Aprobadas</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="2">
-            <MudPaper Class="pa-4 text-center" Elevation="2">
-                <MudIcon Icon="@Icons.Material.Filled.Warning" Color="MudColor.Error" Size="MudSize.Large" />
-                <MudText Typo="Typo.h4" Color="MudColor.Error"><b>@_kpis.CriticalStores</b></MudText>
-                <MudText Typo="Typo.body2">Con Críticos</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="2">
-            <MudPaper Class="pa-4 text-center" Elevation="2">
-                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="MudColor.Info" Size="MudSize.Large" />
-                <MudText Typo="Typo.h4" Color="MudColor.Info">
-                    <b>@(_kpis.TotalStores > 0 ? (_kpis.Approved * 100.0 / _kpis.TotalStores).ToString("F0") : "0")%</b>
-                </MudText>
-                <MudText Typo="Typo.body2">% Aprobación</MudText>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+    <RadzenRow Gap="1rem" class="rz-mb-4">
+        <RadzenColumn Size="6" SizeSM="4" SizeMD="2">
+            <RadzenCard style="text-align:center;padding:1rem">
+                <RadzenIcon Icon="store" style="font-size:2rem;color:var(--rz-primary)" />
+                <RadzenText TextStyle="TextStyle.H4" style="color:var(--rz-primary);font-weight:700">@_kpis.TotalStores</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2">Tiendas Evaluadas</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="6" SizeSM="4" SizeMD="2">
+            <RadzenCard style="text-align:center;padding:1rem">
+                <RadzenIcon Icon="star" style="font-size:2rem;color:var(--rz-warning)" />
+                <RadzenText TextStyle="TextStyle.H4" style="color:var(--rz-warning);font-weight:700">@_kpis.GlobalScore.ToString("F1")%</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2">Nota Global</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="6" SizeSM="4" SizeMD="2">
+            <RadzenCard style="text-align:center;padding:1rem">
+                <RadzenIcon Icon="check_circle" style="font-size:2rem;color:var(--rz-success)" />
+                <RadzenText TextStyle="TextStyle.H4" style="color:var(--rz-success);font-weight:700">@_kpis.Approved</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2">Aprobadas</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="6" SizeSM="4" SizeMD="2">
+            <RadzenCard style="text-align:center;padding:1rem">
+                <RadzenIcon Icon="cancel" style="font-size:2rem;color:var(--rz-danger)" />
+                <RadzenText TextStyle="TextStyle.H4" style="color:var(--rz-danger);font-weight:700">@_kpis.NotApproved</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2">No Aprobadas</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="6" SizeSM="4" SizeMD="2">
+            <RadzenCard style="text-align:center;padding:1rem">
+                <RadzenIcon Icon="warning" style="font-size:2rem;color:var(--rz-danger)" />
+                <RadzenText TextStyle="TextStyle.H4" style="color:var(--rz-danger);font-weight:700">@_kpis.CriticalStores</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2">Con Críticos</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="6" SizeSM="4" SizeMD="2">
+            <RadzenCard style="text-align:center;padding:1rem">
+                <RadzenIcon Icon="trending_up" style="font-size:2rem;color:var(--rz-info)" />
+                <RadzenText TextStyle="TextStyle.H4" style="color:var(--rz-info);font-weight:700">
+                    @(_kpis.TotalStores > 0 ? (_kpis.Approved * 100.0 / _kpis.TotalStores).ToString("F0") : "0")%
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2">% Aprobación</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
 
-    <!-- Gráficas fila 1 -->
-    <MudGrid Class="mb-4">
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Nota Global por Grupo</b></MudText>
+    <RadzenRow Gap="1rem" class="rz-mb-4">
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenCard style="padding:1rem">
+                <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mb-3"><b>Nota Global por Grupo</b></RadzenText>
                 <ApexChart TItem="GroupSummary" Options="_groupChartOptions" Height="280">
                     <ApexPointSeries TItem="GroupSummary"
                                      Items="_groups"
@@ -118,11 +93,11 @@ else if (_kpis is not null)
                                      YValue="@(g => (decimal)Math.Round(g.AvgScore, 1))"
                                      Color="#2E75B6" />
                 </ApexChart>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Promedio por Sección</b></MudText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenCard style="padding:1rem">
+                <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mb-3"><b>Promedio por Sección</b></RadzenText>
                 <ApexChart TItem="SectionPoint" Options="_sectionChartOptions" Height="280">
                     <ApexPointSeries TItem="SectionPoint"
                                      Items="_sectionPoints"
@@ -132,156 +107,146 @@ else if (_kpis is not null)
                                      YValue="@(s => (decimal)Math.Round(s.Score, 1))"
                                      Color="#70AD47" />
                 </ApexChart>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
 
-    <!-- Gráfica: Secciones CLÁSICA vs DEX -->
-    <MudGrid Class="mb-4">
-        <MudItem xs="12">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Nota por Sección — CLÁSICA vs DEX</b></MudText>
-                <ApexChart TItem="SectionGroupPoint" Options="_sectionGroupOptions" Height="320">
-                    <ApexPointSeries TItem="SectionGroupPoint"
-                                     Items="@(_sectionGroupPoints.Where(p => p.Group == "CLÁSICA").ToList())"
-                                     SeriesType="SeriesType.Bar"
-                                     Name="CLÁSICA"
-                                     XValue="@(p => p.Section)"
-                                     YValue="@(p => (decimal)Math.Round(p.Score, 1))"
-                                     Color="#2E75B6" />
-                    <ApexPointSeries TItem="SectionGroupPoint"
-                                     Items="@(_sectionGroupPoints.Where(p => p.Group == "DEX").ToList())"
-                                     SeriesType="SeriesType.Bar"
-                                     Name="DEX"
-                                     XValue="@(p => p.Section)"
-                                     YValue="@(p => (decimal)Math.Round(p.Score, 1))"
-                                     Color="#ED7D31" />
-                </ApexChart>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+    <RadzenCard style="padding:1rem" class="rz-mb-4">
+        <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mb-3"><b>Nota por Sección — CLÁSICA vs DEX</b></RadzenText>
+        <ApexChart TItem="SectionGroupPoint" Options="_sectionGroupOptions" Height="320">
+            <ApexPointSeries TItem="SectionGroupPoint"
+                             Items="@(_sectionGroupPoints.Where(p => p.Group == "CLÁSICA").ToList())"
+                             SeriesType="SeriesType.Bar"
+                             Name="CLÁSICA"
+                             XValue="@(p => p.Section)"
+                             YValue="@(p => (decimal)Math.Round(p.Score, 1))"
+                             Color="#2E75B6" />
+            <ApexPointSeries TItem="SectionGroupPoint"
+                             Items="@(_sectionGroupPoints.Where(p => p.Group == "DEX").ToList())"
+                             SeriesType="SeriesType.Bar"
+                             Name="DEX"
+                             XValue="@(p => p.Section)"
+                             YValue="@(p => (decimal)Math.Round(p.Score, 1))"
+                             Color="#ED7D31" />
+        </ApexChart>
+    </RadzenCard>
 
-    <!-- Gráfica: Ranking de tiendas -->
-    <MudGrid Class="mb-4">
-        <MudItem xs="12">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Nota por Tienda (mayor a menor)</b></MudText>
-                <ApexChart TItem="StoreRow" Options="_storeRankOptions" Height="@(_rows.Count * 26 + 60)">
-                    <ApexPointSeries TItem="StoreRow"
-                                     Items="@(_rows.Where(r => r.Group == "CLÁSICA").ToList())"
-                                     SeriesType="SeriesType.Bar"
-                                     Name="CLÁSICA"
-                                     XValue="@(r => r.StoreId.ToString())"
-                                     YValue="@(r => (decimal)Math.Round(r.Score, 1))"
-                                     Color="#2E75B6" />
-                    <ApexPointSeries TItem="StoreRow"
-                                     Items="@(_rows.Where(r => r.Group == "DEX").ToList())"
-                                     SeriesType="SeriesType.Bar"
-                                     Name="DEX"
-                                     XValue="@(r => r.StoreId.ToString())"
-                                     YValue="@(r => (decimal)Math.Round(r.Score, 1))"
-                                     Color="#ED7D31" />
-                </ApexChart>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+    <RadzenCard style="padding:1rem" class="rz-mb-4">
+        <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mb-3"><b>Nota por Tienda (mayor a menor)</b></RadzenText>
+        <ApexChart TItem="StoreRow" Options="_storeRankOptions" Height="@(_rows.Count * 26 + 60)">
+            <ApexPointSeries TItem="StoreRow"
+                             Items="@(_rows.Where(r => r.Group == "CLÁSICA").ToList())"
+                             SeriesType="SeriesType.Bar"
+                             Name="CLÁSICA"
+                             XValue="@(r => r.StoreId.ToString())"
+                             YValue="@(r => (decimal)Math.Round(r.Score, 1))"
+                             Color="#2E75B6" />
+            <ApexPointSeries TItem="StoreRow"
+                             Items="@(_rows.Where(r => r.Group == "DEX").ToList())"
+                             SeriesType="SeriesType.Bar"
+                             Name="DEX"
+                             XValue="@(r => r.StoreId.ToString())"
+                             YValue="@(r => (decimal)Math.Round(r.Score, 1))"
+                             Color="#ED7D31" />
+        </ApexChart>
+    </RadzenCard>
 
-    <!-- Tabla: Resultados por grupo -->
-    <MudPaper Class="pa-4 mb-4" Elevation="2">
-        <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Resultados por Grupo</b></MudText>
-        <MudTable Items="_groups" Dense="true" Striped="true" Hover="true" Bordered="true">
-            <HeaderContent>
-                <MudTh>Grupo</MudTh>
-                <MudTh>Tiendas</MudTh>
-                <MudTh>Nota %</MudTh>
-                <MudTh>Fact. Riesgo</MudTh>
-                <MudTh>Limpieza</MudTh>
-                <MudTh>Mantenimiento</MudTh>
-                <MudTh>Almacenaje</MudTh>
-                <MudTh>Conocimiento</MudTh>
-                <MudTh>Aprobadas</MudTh>
-                <MudTh>No Aprobadas</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd><b>@context.Group</b></MudTd>
-                <MudTd>@context.Count</MudTd>
-                <MudTd>
-                    <MudChip T="string" Color="@ScoreColor(context.AvgScore)" Size="MudSize.Small">
-                        @context.AvgScore.ToString("F1")%
-                    </MudChip>
-                </MudTd>
-                <MudTd>@context.SectionAverages.GetValueOrDefault("Fact. Riesgo").ToString("F1")%</MudTd>
-                <MudTd>@context.SectionAverages.GetValueOrDefault("Limpieza").ToString("F1")%</MudTd>
-                <MudTd>@context.SectionAverages.GetValueOrDefault("Mantenimiento").ToString("F1")%</MudTd>
-                <MudTd>@context.SectionAverages.GetValueOrDefault("Almacenaje").ToString("F1")%</MudTd>
-                <MudTd>@context.SectionAverages.GetValueOrDefault("Conocimiento").ToString("F1")%</MudTd>
-                <MudTd><MudText Color="MudColor.Success">@context.Approved</MudText></MudTd>
-                <MudTd><MudText Color="MudColor.Error">@context.NotApproved</MudText></MudTd>
-            </RowTemplate>
-        </MudTable>
-    </MudPaper>
+    <RadzenCard style="padding:1rem" class="rz-mb-4">
+        <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mb-3"><b>Resultados por Grupo</b></RadzenText>
+        <RadzenDataGrid Data="@_groups" TItem="GroupSummary" Density="Density.Compact" AllowSorting="true">
+            <Columns>
+                <RadzenDataGridColumn TItem="GroupSummary" Property="Group" Title="Grupo" Width="100px">
+                    <Template Context="g"><b>@g.Group</b></Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="GroupSummary" Property="Count" Title="Tiendas" Width="80px" />
+                <RadzenDataGridColumn TItem="GroupSummary" Property="AvgScore" Title="Nota %" Width="100px">
+                    <Template Context="g">
+                        <RadzenBadge Text="@($"{g.AvgScore:F1}%")" BadgeStyle="@ScoreBadgeStyle(g.AvgScore)" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="GroupSummary" Title="Fact. Riesgo" Width="110px">
+                    <Template Context="g">@g.SectionAverages.GetValueOrDefault("Fact. Riesgo").ToString("F1")%</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="GroupSummary" Title="Limpieza" Width="95px">
+                    <Template Context="g">@g.SectionAverages.GetValueOrDefault("Limpieza").ToString("F1")%</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="GroupSummary" Title="Mantenimiento" Width="120px">
+                    <Template Context="g">@g.SectionAverages.GetValueOrDefault("Mantenimiento").ToString("F1")%</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="GroupSummary" Title="Almacenaje" Width="100px">
+                    <Template Context="g">@g.SectionAverages.GetValueOrDefault("Almacenaje").ToString("F1")%</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="GroupSummary" Title="Conocimiento" Width="110px">
+                    <Template Context="g">@g.SectionAverages.GetValueOrDefault("Conocimiento").ToString("F1")%</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="GroupSummary" Property="Approved" Title="Aprobadas" Width="95px">
+                    <Template Context="g"><span style="color:var(--rz-success)">@g.Approved</span></Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="GroupSummary" Property="NotApproved" Title="No Aprobadas" Width="115px">
+                    <Template Context="g"><span style="color:var(--rz-danger)">@g.NotApproved</span></Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenCard>
 
-    <!-- Tablas: Tiendas por Departamento y Municipio -->
     @if (_departamentos.Count > 0 || _municipios.Count > 0)
     {
-        <MudGrid Class="mb-4">
+        <RadzenRow Gap="1rem" class="rz-mb-4">
             @if (_departamentos.Count > 0)
             {
-                <MudItem xs="12" md="6">
-                    <MudPaper Class="pa-4" Elevation="2">
-                        <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Tiendas Evaluadas por Departamento</b></MudText>
-                        <MudTable Items="_departamentos" Dense="true" Striped="true" Hover="true" Bordered="true">
-                            <HeaderContent>
-                                <MudTh>Departamento</MudTh>
-                                <MudTh>Tiendas</MudTh>
-                                <MudTh>Nota %</MudTh>
-                                <MudTh>Aprobadas</MudTh>
-                                <MudTh>No Aprobadas</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd><b>@context.Name</b></MudTd>
-                                <MudTd>@context.Count</MudTd>
-                                <MudTd>
-                                    <MudChip T="string" Color="@ScoreColor(context.AvgScore)" Size="MudSize.Small">
-                                        @context.AvgScore.ToString("F1")%
-                                    </MudChip>
-                                </MudTd>
-                                <MudTd><MudText Color="MudColor.Success">@context.Approved</MudText></MudTd>
-                                <MudTd><MudText Color="MudColor.Error">@context.NotApproved</MudText></MudTd>
-                            </RowTemplate>
-                        </MudTable>
-                    </MudPaper>
-                </MudItem>
+                <RadzenColumn Size="12" SizeMD="6">
+                    <RadzenCard style="padding:1rem">
+                        <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mb-3"><b>Tiendas Evaluadas por Departamento</b></RadzenText>
+                        <RadzenDataGrid Data="@_departamentos" TItem="LocationSummary" Density="Density.Compact">
+                            <Columns>
+                                <RadzenDataGridColumn TItem="LocationSummary" Property="Name" Title="Departamento">
+                                    <Template Context="d"><b>@d.Name</b></Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="LocationSummary" Property="Count" Title="Tiendas" Width="80px" />
+                                <RadzenDataGridColumn TItem="LocationSummary" Property="AvgScore" Title="Nota %" Width="100px">
+                                    <Template Context="d">
+                                        <RadzenBadge Text="@($"{d.AvgScore:F1}%")" BadgeStyle="@ScoreBadgeStyle(d.AvgScore)" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="LocationSummary" Property="Approved" Title="Aprobadas" Width="95px">
+                                    <Template Context="d"><span style="color:var(--rz-success)">@d.Approved</span></Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="LocationSummary" Property="NotApproved" Title="No Aprobadas" Width="115px">
+                                    <Template Context="d"><span style="color:var(--rz-danger)">@d.NotApproved</span></Template>
+                                </RadzenDataGridColumn>
+                            </Columns>
+                        </RadzenDataGrid>
+                    </RadzenCard>
+                </RadzenColumn>
             }
             @if (_municipios.Count > 0)
             {
-                <MudItem xs="12" md="6">
-                    <MudPaper Class="pa-4" Elevation="2">
-                        <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Tiendas Evaluadas por Municipio</b></MudText>
-                        <MudTable Items="_municipios" Dense="true" Striped="true" Hover="true" Bordered="true">
-                            <HeaderContent>
-                                <MudTh>Municipio</MudTh>
-                                <MudTh>Tiendas</MudTh>
-                                <MudTh>Nota %</MudTh>
-                                <MudTh>Aprobadas</MudTh>
-                                <MudTh>No Aprobadas</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd><b>@context.Name</b></MudTd>
-                                <MudTd>@context.Count</MudTd>
-                                <MudTd>
-                                    <MudChip T="string" Color="@ScoreColor(context.AvgScore)" Size="MudSize.Small">
-                                        @context.AvgScore.ToString("F1")%
-                                    </MudChip>
-                                </MudTd>
-                                <MudTd><MudText Color="MudColor.Success">@context.Approved</MudText></MudTd>
-                                <MudTd><MudText Color="MudColor.Error">@context.NotApproved</MudText></MudTd>
-                            </RowTemplate>
-                        </MudTable>
-                    </MudPaper>
-                </MudItem>
+                <RadzenColumn Size="12" SizeMD="6">
+                    <RadzenCard style="padding:1rem">
+                        <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mb-3"><b>Tiendas Evaluadas por Municipio</b></RadzenText>
+                        <RadzenDataGrid Data="@_municipios" TItem="LocationSummary" Density="Density.Compact">
+                            <Columns>
+                                <RadzenDataGridColumn TItem="LocationSummary" Property="Name" Title="Municipio">
+                                    <Template Context="m"><b>@m.Name</b></Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="LocationSummary" Property="Count" Title="Tiendas" Width="80px" />
+                                <RadzenDataGridColumn TItem="LocationSummary" Property="AvgScore" Title="Nota %" Width="100px">
+                                    <Template Context="m">
+                                        <RadzenBadge Text="@($"{m.AvgScore:F1}%")" BadgeStyle="@ScoreBadgeStyle(m.AvgScore)" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="LocationSummary" Property="Approved" Title="Aprobadas" Width="95px">
+                                    <Template Context="m"><span style="color:var(--rz-success)">@m.Approved</span></Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="LocationSummary" Property="NotApproved" Title="No Aprobadas" Width="115px">
+                                    <Template Context="m"><span style="color:var(--rz-danger)">@m.NotApproved</span></Template>
+                                </RadzenDataGridColumn>
+                            </Columns>
+                        </RadzenDataGrid>
+                    </RadzenCard>
+                </RadzenColumn>
             }
-        </MudGrid>
+        </RadzenRow>
     }
 }
 
@@ -298,9 +263,8 @@ else if (_kpis is not null)
     private List<int> _years = [];
     private int? _year;
     private int? _month;
-
-    private int[] year = { 2024, 2025, 2026 };
-    private int[] month = Enumerable.Range(1, 12).ToArray();
+    private List<int> _availableMonths = [];
+    private List<MonthOption> _monthOptions = [];
 
     private static readonly string[] SectionCols =
         ["Fact. Riesgo", "Limpieza", "Mantenimiento", "Almacenaje", "Conocimiento"];
@@ -310,8 +274,6 @@ else if (_kpis is not null)
         {1,"Enero"},{2,"Febrero"},{3,"Marzo"},{4,"Abril"},{5,"Mayo"},{6,"Junio"},
         {7,"Julio"},{8,"Agosto"},{9,"Septiembre"},{10,"Octubre"},{11,"Noviembre"},{12,"Diciembre"}
     };
-
-    private List<int> _availableMonths = [];
 
     private ApexChartOptions<GroupSummary> _groupChartOptions = new()
     {
@@ -349,13 +311,12 @@ else if (_kpis is not null)
     {
         try
         {
-            //var yearsTask  = AuditSvc.GetAvailableYearsAsync();
-            //var monthsTask = AuditSvc.GetAvailableMonthsAsync(null);
-            //await Task.WhenAll(yearsTask, monthsTask);
-            //_years           = yearsTask.Result;
-            //_availableMonths = monthsTask.Result;
-            _years = year.ToList();
-            _availableMonths = month.ToList();
+            var yearsTask  = AuditSvc.GetAvailableYearsAsync();
+            var monthsTask = AuditSvc.GetAvailableMonthsAsync(null);
+            await Task.WhenAll(yearsTask, monthsTask);
+            _years           = yearsTask.Result;
+            _availableMonths = monthsTask.Result;
+            _monthOptions    = BuildMonthOptions(_availableMonths);
             await LoadData();
         }
         catch (Exception ex)
@@ -365,12 +326,12 @@ else if (_kpis is not null)
         }
     }
 
-    private async Task OnYearChanged(int? value)
+    private async Task OnYearChanged(object value)
     {
-        _year = value;
         _availableMonths = await AuditSvc.GetAvailableMonthsAsync(_year);
         if (_month.HasValue && !_availableMonths.Contains(_month.Value))
             _month = null;
+        _monthOptions = BuildMonthOptions(_availableMonths);
     }
 
     private async Task LoadData()
@@ -409,13 +370,17 @@ else if (_kpis is not null)
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
 
-    private MudColor ScoreColor(double score) => score switch
+    private List<MonthOption> BuildMonthOptions(List<int> months) =>
+        months.Select(m => new MonthOption(m, _monthNames[m])).ToList();
+
+    private BadgeStyle ScoreBadgeStyle(double score) => score switch
     {
-        >= 95 => MudColor.Success,
-        >= 85 => MudColor.Warning,
-        _     => MudColor.Error
+        >= 95 => BadgeStyle.Success,
+        >= 85 => BadgeStyle.Warning,
+        _     => BadgeStyle.Danger
     };
 
+    private record MonthOption(int Value, string Text);
     private record SectionPoint(string Section, double Score);
     private record SectionGroupPoint(string Section, string Group, double Score);
 }

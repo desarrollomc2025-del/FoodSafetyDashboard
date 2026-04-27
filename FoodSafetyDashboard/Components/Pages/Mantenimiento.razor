@@ -5,136 +5,104 @@
 
 <PageTitle>Carga de Auditorías</PageTitle>
 
-<MudText Typo="Typo.h5" Class="mb-4">Carga de Auditorías PDF</MudText>
+<RadzenText TextStyle="TextStyle.H5" class="rz-mb-4">Carga de Auditorías PDF</RadzenText>
 
-@* ── 1. Upload ─────────────────────────────────────────────── *@
-<MudPaper Class="pa-4 mb-4" Elevation="2">
-    <MudText Typo="Typo.h6" GutterBottom="true">1. Subir archivos PDF</MudText>
+<InputFile id="pdfInput" multiple accept=".pdf" OnChange="OnFilesSelected" style="display:none" />
 
-    <InputFile id="pdfInput" multiple accept=".pdf"
-               OnChange="OnFilesSelected" style="display:none" />
-
-    <MudGrid>
-        <MudItem xs="12" sm="8" Class="d-flex align-center gap-3">
-            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.UploadFile"
-                       OnClick="OpenFilePicker">
-                Seleccionar PDFs
-            </MudButton>
-            @if (_selectedFiles.Count > 0)
-            {
-                <MudText Typo="Typo.body2">@_selectedFiles.Count archivo(s) seleccionado(s)</MudText>
-            }
-        </MudItem>
-        <MudItem xs="12" sm="4">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.CloudUpload"
-                       OnClick="UploadFiles"
-                       Disabled="@(_selectedFiles.Count == 0 || _uploading)"
-                       FullWidth="true">
-                @if (_uploading)
-                {
-                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                }
-                Subir PDFs
-            </MudButton>
-        </MudItem>
-    </MudGrid>
-
+<RadzenCard class="rz-mb-4">
+    <RadzenText TextStyle="TextStyle.H6" class="rz-mb-3">1. Subir archivos PDF</RadzenText>
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="12px" Wrap="FlexWrap.Wrap">
+        <RadzenButton Text="Seleccionar PDFs" ButtonStyle="ButtonStyle.Light"
+                      Icon="upload_file" Click="OpenFilePicker" />
+        @if (_selectedFiles.Count > 0)
+        {
+            <RadzenText TextStyle="TextStyle.Body2">@_selectedFiles.Count archivo(s) seleccionado(s)</RadzenText>
+        }
+        <RadzenButton Text="@(_uploading ? "Subiendo..." : "Subir PDFs")"
+                      ButtonStyle="ButtonStyle.Primary" Icon="cloud_upload"
+                      Click="UploadFiles"
+                      Disabled="_selectedFiles.Count == 0 || _uploading"
+                      Style="margin-left:auto" />
+    </RadzenStack>
     @if (!string.IsNullOrEmpty(_uploadMessage))
     {
-        <MudAlert Severity="@_uploadSeverity" Class="mt-3" Dense="true">@_uploadMessage</MudAlert>
+        <RadzenAlert AlertStyle="@_uploadAlertStyle" class="rz-mt-3" Shade="Shade.Lighter">
+            @_uploadMessage
+        </RadzenAlert>
     }
-</MudPaper>
+</RadzenCard>
 
-@* ── 2. Cola ───────────────────────────────────────────────── *@
-<MudPaper Class="pa-4 mb-4" Elevation="2">
-    <MudGrid Justify="Justify.SpaceBetween" AlignItems="Center" Class="mb-3">
-        <MudItem>
-            <MudText Typo="Typo.h6">
-                2. Cola de procesamiento
-                <MudChip T="string" Size="Size.Small" Color="@(_pendingFiles.Count > 0 ? Color.Warning : Color.Default)"
-                         Class="ml-1">
-                    @_pendingFiles.Count pendiente(s)
-                </MudChip>
-            </MudText>
-        </MudItem>
-        <MudItem Class="d-flex gap-2">
-            <MudIconButton Icon="@Icons.Material.Filled.Refresh"
-                           OnClick="RefreshPending" Title="Actualizar lista" />
-            <MudButton Variant="Variant.Filled" Color="Color.Success"
-                       StartIcon="@Icons.Material.Filled.PlayArrow"
-                       OnClick="RunParser"
-                       Disabled="@(_pendingFiles.Count == 0 || _running)"
-                       Size="Size.Medium">
-                @if (_running)
-                {
-                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                }
-                Ejecutar Parser
-            </MudButton>
-        </MudItem>
-    </MudGrid>
+<RadzenCard class="rz-mb-4">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" class="rz-mb-3">
+        <RadzenText TextStyle="TextStyle.H6">
+            2. Cola de procesamiento
+            <RadzenBadge Text="@_pendingFiles.Count.ToString()"
+                         BadgeStyle="@(_pendingFiles.Count > 0 ? BadgeStyle.Warning : BadgeStyle.Light)"
+                         style="margin-left:8px" />
+        </RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="8px" Style="margin-left:auto">
+            <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light"
+                          Click="RefreshPending" title="Actualizar lista" />
+            <RadzenButton Text="@(_running ? "Ejecutando..." : "Ejecutar Parser")"
+                          ButtonStyle="ButtonStyle.Success" Icon="play_arrow"
+                          Click="RunParser"
+                          Disabled="_pendingFiles.Count == 0 || _running" />
+        </RadzenStack>
+    </RadzenStack>
 
     @if (_pendingFiles.Count > 0)
     {
-        <MudTable Items="_pendingFiles" Dense="true" Striped="true" Hover="true"
-                  FixedHeader="true" Height="300px">
-            <HeaderContent>
-                <MudTh Style="width:50px">#</MudTh>
-                <MudTh>Archivo</MudTh>
-                <MudTh Style="width:120px">Estado</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@(_pendingFiles.IndexOf(context) + 1)</MudTd>
-                <MudTd>
-                    <MudIcon Icon="@Icons.Material.Filled.PictureAsPdf"
-                             Color="Color.Error" Size="Size.Small" Class="mr-1" />
-                    @context
-                </MudTd>
-                <MudTd>
-                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined">
-                        Pendiente
-                    </MudChip>
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
+        <RadzenDataGrid Data="@_pendingFiles" TItem="string"
+                        Density="Density.Compact" Style="height:300px">
+            <Columns>
+                <RadzenDataGridColumn TItem="string" Title="#" Width="50px">
+                    <Template Context="f">@(_pendingFiles.IndexOf(f) + 1)</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="string" Title="Archivo">
+                    <Template Context="f">
+                        <RadzenIcon Icon="picture_as_pdf" style="color:var(--rz-danger);margin-right:6px;font-size:1rem" />
+                        @f
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="string" Title="Estado" Width="120px">
+                    <Template Context="f">
+                        <RadzenBadge Text="Pendiente" BadgeStyle="BadgeStyle.Warning" Shade="Shade.Lighter" />
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
     }
     else
     {
-        <MudText Color="Color.Secondary" Align="Align.Center" Class="pa-4">
+        <RadzenText Style="text-align:center;color:var(--rz-text-secondary-color);padding:1rem">
             No hay archivos PDF en la cola. Sube archivos para procesar.
-        </MudText>
+        </RadzenText>
     }
-</MudPaper>
+</RadzenCard>
 
-@* ── 3. Resultado ─────────────────────────────────────────── *@
 @if (!string.IsNullOrEmpty(_runOutput))
 {
-    <MudPaper Class="pa-4" Elevation="2">
-        <MudText Typo="Typo.h6" GutterBottom="true">3. Resultado de ejecución</MudText>
-
-        <MudAlert Severity="@(_exitCode == 0 ? Severity.Success : Severity.Error)"
-                  Class="mb-3" Dense="true">
+    <RadzenCard>
+        <RadzenText TextStyle="TextStyle.H6" class="rz-mb-3">3. Resultado de ejecución</RadzenText>
+        <RadzenAlert AlertStyle="@(_exitCode == 0 ? AlertStyle.Success : AlertStyle.Danger)"
+                     Shade="Shade.Lighter" class="rz-mb-3">
             @(_exitCode == 0
                 ? "Procesamiento completado. Los datos fueron insertados en la base de datos."
                 : $"El parser terminó con error (código {_exitCode}). Revisa el log.")
-        </MudAlert>
-
+        </RadzenAlert>
         <pre style="background:#1e1e1e;color:#d4d4d4;padding:16px;border-radius:4px;
                     overflow-x:auto;font-size:0.82rem;max-height:420px;overflow-y:auto;
                     white-space:pre-wrap;word-break:break-all">@_runOutput</pre>
-    </MudPaper>
+    </RadzenCard>
 }
 
 @code {
-
     private List<IBrowserFile> _selectedFiles = [];
     private List<string> _pendingFiles = [];
     private bool _uploading;
     private bool _running;
     private string _uploadMessage = string.Empty;
-    private Severity _uploadSeverity = Severity.Info;
+    private AlertStyle _uploadAlertStyle = AlertStyle.Info;
     private string _runOutput = string.Empty;
     private int _exitCode;
 
@@ -163,22 +131,14 @@
 
         foreach (var file in _selectedFiles)
         {
-            try
-            {
-                await PdfSvc.SaveFileAsync(file);
-                ok++;
-            }
-            catch
-            {
-                failed++;
-                failNames.Add(file.Name);
-            }
+            try { await PdfSvc.SaveFileAsync(file); ok++; }
+            catch { failed++; failNames.Add(file.Name); }
         }
 
         _selectedFiles = [];
         RefreshPending();
 
-        _uploadSeverity = failed == 0 ? Severity.Success : Severity.Warning;
+        _uploadAlertStyle = failed == 0 ? AlertStyle.Success : AlertStyle.Warning;
         _uploadMessage = failed == 0
             ? $"{ok} archivo(s) subido(s) correctamente."
             : $"Subidos: {ok}  |  Errores: {failed} ({string.Join(", ", failNames)})";

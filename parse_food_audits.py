@@ -496,8 +496,8 @@ def build_sql(audit: Dict[str, Any], sections: List[Dict[str, Any]], findings: L
     {audit['store_id']},
     {audit['audit_id']},
     {sql_escape(audit['location'])},
-    {sql_escape(audit['departamento'])},
-    {sql_escape(audit['municipio'])},
+    {sql_escape(audit.get('departamento'))},
+    {sql_escape(audit.get('municipio'))},
     {sql_escape(audit['audit_start'])},
     {sql_escape(audit['audit_end'])},
     {sql_escape(audit['auditor'])},
@@ -573,8 +573,8 @@ def build_sql_update(audit: Dict[str, Any], sections: List[Dict[str, Any]], find
         f"""UPDATE audits SET
     store_id = {audit['store_id']},
     location = {sql_escape(audit['location'])},
-    departamento = {sql_escape(audit['departamento'])},
-    municipio = {sql_escape(audit['municipio'])},
+    departamento = {sql_escape(audit.get('departamento'))},
+    municipio = {sql_escape(audit.get('municipio'))},
     audit_start = {sql_escape(audit['audit_start'])},
     audit_end = {sql_escape(audit['audit_end'])},
     auditor = {sql_escape(audit['auditor'])},
@@ -677,8 +677,8 @@ def db_upsert(conn_str: str, audit: Dict[str, Any], sections: List[Dict[str, Any
                     source_file=?
                 WHERE audit_id=?""",
                 (
-                    audit["store_id"], audit["location"], audit["departamento"],
-                    audit["municipio"], audit["audit_start"], audit["audit_end"],
+                    audit["store_id"], audit["location"], audit.get("departamento"),
+                    audit.get("municipio"), audit["audit_start"], audit["audit_end"],
                     audit["auditor"], audit["franchisee"], audit["manager_in_charge"],
                     audit["points_earned"], audit["points_possible"],
                     audit["percentage_score"], audit["critical_violations"],
@@ -697,7 +697,7 @@ def db_upsert(conn_str: str, audit: Dict[str, Any], sections: List[Dict[str, Any
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     audit["audit_id"], audit["store_id"], audit["location"],
-                    audit["departamento"], audit["municipio"],
+                    audit.get("departamento"), audit.get("municipio"),
                     audit["audit_start"], audit["audit_end"],
                     audit["auditor"], audit["franchisee"], audit["manager_in_charge"],
                     audit["points_earned"], audit["points_possible"],

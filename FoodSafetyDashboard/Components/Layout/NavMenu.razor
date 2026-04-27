@@ -1,18 +1,7 @@
-﻿<MudNavMenu>
-    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
-        Resumen Ejecutivo
-    </MudNavLink>
-    <MudNavLink Href="/tiendas" Icon="@Icons.Material.Filled.Store">
-        Detalle por Tienda
-    </MudNavLink>
-    <MudNavLink Href="/hallazgos" Icon="@Icons.Material.Filled.BugReport">
-        Hallazgos Sistémicos
-    </MudNavLink>
-    <MudNavLink Href="/plan-accion" Icon="@Icons.Material.Filled.Assignment">
-        Plan de Acción
-    </MudNavLink>
-    <MudNavLink Href="/mantenimiento" Icon="@Icons.Material.Filled.CloudUpload">
-        Carga de Auditorías
-    </MudNavLink>
-</MudNavMenu>
-
+<RadzenPanelMenu>
+    <RadzenPanelMenuItem Text="Resumen Ejecutivo"   Path="/"              Icon="dashboard"    Match="NavLinkMatch.All" />
+    <RadzenPanelMenuItem Text="Detalle por Tienda"  Path="/tiendas"       Icon="store" />
+    <RadzenPanelMenuItem Text="Hallazgos Sistémicos" Path="/hallazgos"    Icon="bug_report" />
+    <RadzenPanelMenuItem Text="Plan de Acción"      Path="/plan-accion"   Icon="assignment" />
+    <RadzenPanelMenuItem Text="Carga de Auditorías" Path="/mantenimiento" Icon="cloud_upload" />
+</RadzenPanelMenu>

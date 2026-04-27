@@ -6,120 +6,102 @@
 
 <PageTitle>Detalle por Tienda</PageTitle>
 
-<MudText Typo="Typo.h5" Class="mb-4">Detalle por Tienda</MudText>
+<RadzenText TextStyle="TextStyle.H5" class="rz-mb-4">Detalle por Tienda</RadzenText>
 
-<!-- Filtros -->
-<MudPaper Class="pa-3 mb-4" Elevation="1">
-    <MudGrid AlignItems="Center">
-        <MudItem xs="12" sm="3">
-            <MudSelect T="int?" Label="Año" @bind-Value="_year" Clearable="true">
-                @foreach (var y in _years)
-                {
-                    <MudSelectItem T="int?" Value="@((int?)y)">@y</MudSelectItem>
-                }
-            </MudSelect>
-        </MudItem>
-        <MudItem xs="12" sm="3">
-            <MudSelect T="string?" Label="Grupo" @bind-Value="_groupFilter" Clearable="true">
-                <MudSelectItem T="string?" Value="@("CLÁSICA")">CLÁSICA</MudSelectItem>
-                <MudSelectItem T="string?" Value="@("DEX")">DEX</MudSelectItem>
-            </MudSelect>
-        </MudItem>
-        <MudItem xs="12" sm="3">
-            <MudSelect T="string?" Label="Resultado" @bind-Value="_resultFilter" Clearable="true">
-                <MudSelectItem T="string?" Value="@("Aprobado")">Aprobado</MudSelectItem>
-                <MudSelectItem T="string?" Value="@("No aprobado")">No aprobado</MudSelectItem>
-            </MudSelect>
-        </MudItem>
-        <MudItem xs="12" sm="3">
-            <MudStack Row="true">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadData">Aplicar</MudButton>
-                <MudButton Variant="Variant.Outlined" Color="Color.Success"
-                           StartIcon="@Icons.Material.Filled.Download"
-                           OnClick="ExportExcel">
-                    Excel
-                </MudButton>
-            </MudStack>
-        </MudItem>
-    </MudGrid>
-</MudPaper>
+<RadzenCard class="rz-mb-4">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="12px" Wrap="FlexWrap.Wrap">
+        <RadzenDropDown @bind-Value="_year" Data="@_years"
+                        AllowClear="true" Placeholder="Año" Style="width:130px" />
+        <RadzenDropDown @bind-Value="_groupFilter" Data="@_groupOptions"
+                        AllowClear="true" Placeholder="Grupo" Style="width:130px" />
+        <RadzenDropDown @bind-Value="_resultFilter" Data="@_resultOptions"
+                        AllowClear="true" Placeholder="Resultado" Style="width:150px" />
+        <RadzenButton Text="Aplicar" ButtonStyle="ButtonStyle.Primary" Click="LoadData" />
+        <RadzenButton Text="Excel" ButtonStyle="ButtonStyle.Success" Icon="download" Click="ExportExcel" />
+    </RadzenStack>
+</RadzenCard>
 
 @if (_errorMsg is not null)
 {
-    <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMsg</MudAlert>
+    <RadzenAlert AlertStyle="AlertStyle.Danger" class="rz-mb-4">@_errorMsg</RadzenAlert>
 }
 
 @if (_loading)
 {
-    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
 }
 else
 {
-    <MudPaper Elevation="2">
-        <MudTable Items="FilteredRows" Dense="true" Striped="true" Hover="true"
-                  SortLabel="Ordenar" AllowUnsorted="false" FixedHeader="true" Height="600px">
-            <HeaderContent>
-                <MudTh><MudTableSortLabel SortBy="new Func<StoreRow,object>(x=>x.StoreId)">Tienda</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<StoreRow,object>(x=>x.Group)">Grupo</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<StoreRow,object>(x=>x.AuditDate ?? DateTime.MinValue)">Fecha</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel InitialDirection="SortDirection.Descending" SortBy="new Func<StoreRow,object>(x=>x.Score)">Nota %</MudTableSortLabel></MudTh>
-                <MudTh>Resultado</MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<StoreRow,object>(x=>x.CriticalViolations)">Críticos</MudTableSortLabel></MudTh>
-                <MudTh>Fact. Riesgo</MudTh>
-                <MudTh>Limpieza</MudTh>
-                <MudTh>Mantenimiento</MudTh>
-                <MudTh>Almacenaje</MudTh>
-                <MudTh>Conocimiento</MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<StoreRow,object>(x=>x.TotalViolations)">Fallos</MudTableSortLabel></MudTh>
-                <MudTh>Puntos</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd><b>@context.StoreId</b></MudTd>
-                <MudTd>
-                    <MudChip T="string" Size="Size.Small"
-                             Color="@(context.Group == "DEX" ? Color.Info : Color.Default)">
-                        @context.Group
-                    </MudChip>
-                </MudTd>
-                <MudTd>@context.AuditDate?.ToString("yyyy-MM-dd")</MudTd>
-                <MudTd>
-                    <MudChip T="string" Color="@ScoreColor(context.Score)" Size="Size.Small">
-                        @context.Score.ToString("F1")%
-                    </MudChip>
-                </MudTd>
-                <MudTd>
-                    <MudChip T="string" Size="Size.Small"
-                             Color="@(context.Result == "Aprobado" ? Color.Success : Color.Error)">
-                        @context.Result
-                    </MudChip>
-                </MudTd>
-                <MudTd>
-                    @if (context.CriticalViolations > 0)
-                    {
-                        <MudChip T="string" Color="Color.Error" Size="Size.Small">@context.CriticalViolations</MudChip>
-                    }
-                    else
-                    {
-                        <MudText>0</MudText>
-                    }
-                </MudTd>
-                <MudTd>@FormatSection(context.Sections.GetValueOrDefault("Fact. Riesgo"))</MudTd>
-                <MudTd>@FormatSection(context.Sections.GetValueOrDefault("Limpieza"))</MudTd>
-                <MudTd>@FormatSection(context.Sections.GetValueOrDefault("Mantenimiento"))</MudTd>
-                <MudTd>@FormatSection(context.Sections.GetValueOrDefault("Almacenaje"))</MudTd>
-                <MudTd>@FormatSection(context.Sections.GetValueOrDefault("Conocimiento"))</MudTd>
-                <MudTd>@context.TotalViolations</MudTd>
-                <MudTd>@context.Points</MudTd>
-            </RowTemplate>
-            <FooterContent>
-                <MudTd colspan="3"><b>PROMEDIO</b></MudTd>
-                <MudTd>
-                    <b>@(FilteredRows.Any() ? FilteredRows.Average(r => r.Score).ToString("F1") : "0")%</b>
-                </MudTd>
-                <MudTd colspan="9"></MudTd>
-            </FooterContent>
-        </MudTable>
-    </MudPaper>
+    <RadzenCard>
+        <RadzenDataGrid Data="@FilteredRows" TItem="StoreRow"
+                        AllowSorting="true" AllowColumnResize="true"
+                        Density="Density.Compact" Style="height:600px">
+            <Columns>
+                <RadzenDataGridColumn TItem="StoreRow" Property="StoreId" Title="Tienda" Width="80px" Frozen="true">
+                    <Template Context="r"><b>@r.StoreId</b></Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="StoreRow" Property="Group" Title="Grupo" Width="90px">
+                    <Template Context="r">
+                        <RadzenBadge Text="@r.Group"
+                                     BadgeStyle="@(r.Group == "DEX" ? BadgeStyle.Info : BadgeStyle.Light)" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="StoreRow" Property="AuditDate" Title="Fecha" Width="110px">
+                    <Template Context="r">@r.AuditDate?.ToString("yyyy-MM-dd")</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="StoreRow" Property="Score" Title="Nota %" Width="100px">
+                    <Template Context="r">
+                        <RadzenBadge Text="@($"{r.Score:F1}%")"
+                                     BadgeStyle="@ScoreBadgeStyle(r.Score)" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="StoreRow" Property="Result" Title="Resultado" Width="110px">
+                    <Template Context="r">
+                        <RadzenBadge Text="@r.Result"
+                                     BadgeStyle="@(r.Result == "Aprobado" ? BadgeStyle.Success : BadgeStyle.Danger)" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="StoreRow" Property="CriticalViolations" Title="Críticos" Width="80px">
+                    <Template Context="r">
+                        @if (r.CriticalViolations > 0)
+                        {
+                            <RadzenBadge Text="@r.CriticalViolations.ToString()" BadgeStyle="BadgeStyle.Danger" />
+                        }
+                        else
+                        {
+                            <span>0</span>
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="StoreRow" Title="Fact. Riesgo" Width="105px">
+                    <Template Context="r">@FormatSection(r.Sections.GetValueOrDefault("Fact. Riesgo"))</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="StoreRow" Title="Limpieza" Width="95px">
+                    <Template Context="r">@FormatSection(r.Sections.GetValueOrDefault("Limpieza"))</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="StoreRow" Title="Mantenimiento" Width="115px">
+                    <Template Context="r">@FormatSection(r.Sections.GetValueOrDefault("Mantenimiento"))</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="StoreRow" Title="Almacenaje" Width="105px">
+                    <Template Context="r">@FormatSection(r.Sections.GetValueOrDefault("Almacenaje"))</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="StoreRow" Title="Conocimiento" Width="110px">
+                    <Template Context="r">@FormatSection(r.Sections.GetValueOrDefault("Conocimiento"))</Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="StoreRow" Property="TotalViolations" Title="Fallos" Width="75px" />
+                <RadzenDataGridColumn TItem="StoreRow" Property="Points" Title="Puntos" Width="85px" />
+            </Columns>
+        </RadzenDataGrid>
+        @if (FilteredRows.Any())
+        {
+            <RadzenStack Orientation="Orientation.Horizontal" class="rz-mt-2 rz-p-2">
+                <RadzenText TextStyle="TextStyle.Body2">
+                    <b>Promedio: @FilteredRows.Average(r => r.Score).ToString("F1")%</b>
+                    &nbsp;|&nbsp; @FilteredRows.Count() tiendas
+                </RadzenText>
+            </RadzenStack>
+        }
+    </RadzenCard>
 }
 
 @code {
@@ -131,8 +113,11 @@ else
     private string? _groupFilter;
     private string? _resultFilter;
 
+    private static readonly string[] _groupOptions  = ["CLÁSICA", "DEX"];
+    private static readonly string[] _resultOptions = ["Aprobado", "No aprobado"];
+
     private IEnumerable<StoreRow> FilteredRows => _rows
-        .Where(r => _groupFilter == null || r.Group == _groupFilter)
+        .Where(r => _groupFilter  == null || r.Group  == _groupFilter)
         .Where(r => _resultFilter == null || r.Result == _resultFilter);
 
     protected override async Task OnInitializedAsync()
@@ -153,7 +138,6 @@ else
     {
         _loading = true;
         _errorMsg = null;
-        await InvokeAsync(StateHasChanged);
         try
         {
             _rows = await AuditSvc.GetStoreRowsAsync(_year);
@@ -178,10 +162,10 @@ else
 
     private static string FormatSection(double? val) => val.HasValue ? $"{val.Value:F1}%" : "—";
 
-    private Color ScoreColor(double score) => score switch
+    private BadgeStyle ScoreBadgeStyle(double score) => score switch
     {
-        >= 95 => Color.Success,
-        >= 85 => Color.Warning,
-        _     => Color.Error
+        >= 95 => BadgeStyle.Success,
+        >= 85 => BadgeStyle.Warning,
+        _     => BadgeStyle.Danger
     };
 }

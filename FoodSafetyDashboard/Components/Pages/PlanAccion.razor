@@ -4,92 +4,86 @@
 
 <PageTitle>Plan de Acción</PageTitle>
 
-<MudText Typo="Typo.h5" Class="mb-4">Plan de Acción Correctivo</MudText>
+<RadzenText TextStyle="TextStyle.H5" class="rz-mb-4">Plan de Acción Correctivo</RadzenText>
 
 @if (_loading)
 {
-    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
 }
 else
 {
-    <!-- Resumen de estado -->
-    <MudGrid Class="mb-4">
-        <MudItem xs="6" sm="3">
-            <MudPaper Class="pa-3 text-center" Elevation="2">
-                <MudText Typo="Typo.h4"><b>@_items.Count</b></MudText>
-                <MudText Typo="Typo.body2">Total Acciones</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="6" sm="3">
-            <MudPaper Class="pa-3 text-center" Elevation="2">
-                <MudText Typo="Typo.h4" Color="Color.Error">
-                    <b>@_items.Count(i => i.Priority is "INMEDIATO" or "CRÍTICO")</b>
-                </MudText>
-                <MudText Typo="Typo.body2">Inmediatas / Críticas</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="6" sm="3">
-            <MudPaper Class="pa-3 text-center" Elevation="2">
-                <MudText Typo="Typo.h4" Color="Color.Warning">
-                    <b>@_items.Count(i => i.Priority == "ALTO")</b>
-                </MudText>
-                <MudText Typo="Typo.body2">Prioridad Alta</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="6" sm="3">
-            <MudPaper Class="pa-3 text-center" Elevation="2">
-                <MudText Typo="Typo.h4" Color="Color.Success">
-                    <b>@_items.Count(i => i.Status == "Completado")</b>
-                </MudText>
-                <MudText Typo="Typo.body2">Completadas</MudText>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+    <RadzenRow Gap="1rem" class="rz-mb-4">
+        <RadzenColumn Size="6" SizeSM="3">
+            <RadzenCard style="text-align:center;padding:1rem">
+                <RadzenText TextStyle="TextStyle.H4" style="font-weight:700">@_items.Count</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2">Total Acciones</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="6" SizeSM="3">
+            <RadzenCard style="text-align:center;padding:1rem">
+                <RadzenText TextStyle="TextStyle.H4" style="color:var(--rz-danger);font-weight:700">
+                    @_items.Count(i => i.Priority is "INMEDIATO" or "CRÍTICO")
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2">Inmediatas / Críticas</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="6" SizeSM="3">
+            <RadzenCard style="text-align:center;padding:1rem">
+                <RadzenText TextStyle="TextStyle.H4" style="color:var(--rz-warning);font-weight:700">
+                    @_items.Count(i => i.Priority == "ALTO")
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2">Prioridad Alta</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="6" SizeSM="3">
+            <RadzenCard style="text-align:center;padding:1rem">
+                <RadzenText TextStyle="TextStyle.H4" style="color:var(--rz-success);font-weight:700">
+                    @_items.Count(i => i.Status == "Completado")
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2">Completadas</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
 
-    <MudPaper Elevation="2">
-        <MudTable Items="_items" Dense="true" Striped="true" Hover="true" FixedHeader="true" Height="600px">
-            <HeaderContent>
-                <MudTh>#</MudTh>
-                <MudTh>Acción</MudTh>
-                <MudTh>Tiendas</MudTh>
-                <MudTh>Prioridad</MudTh>
-                <MudTh>Plazo</MudTh>
-                <MudTh>Responsable</MudTh>
-                <MudTh>Estado</MudTh>
-                <MudTh>Observaciones</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@context.Index</MudTd>
-                <MudTd Style="max-width:280px; white-space:normal">@context.Action</MudTd>
-                <MudTd Style="max-width:140px; white-space:normal">@context.Stores</MudTd>
-                <MudTd>
-                    <MudChip T="string" Color="@PriorityColor(context.Priority)" Size="Size.Small">
-                        @context.Priority
-                    </MudChip>
-                </MudTd>
-                <MudTd>@context.Deadline</MudTd>
-                <MudTd>@context.Responsible</MudTd>
-                <MudTd>
-                    <MudSelect T="string" Value="@context.Status"
-                               ValueChanged="@(v => UpdateStatus(context, v))"
-                               Dense="true" Variant="Variant.Outlined">
-                        <MudSelectItem T="string" Value="@("Pendiente")">Pendiente</MudSelectItem>
-                        <MudSelectItem T="string" Value="@("En curso")">En curso</MudSelectItem>
-                        <MudSelectItem T="string" Value="@("Acción iniciada")">Acción iniciada</MudSelectItem>
-                        <MudSelectItem T="string" Value="@("Completado")">Completado</MudSelectItem>
-                    </MudSelect>
-                </MudTd>
-                <MudTd Style="max-width:260px; white-space:normal; font-size:0.78rem">
-                    @context.Notes
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
-    </MudPaper>
+    <RadzenCard>
+        <RadzenDataGrid Data="@_items" TItem="ActionItem"
+                        AllowSorting="true" Density="Density.Compact"
+                        Style="height:600px">
+            <Columns>
+                <RadzenDataGridColumn TItem="ActionItem" Property="Index" Title="#" Width="50px" />
+                <RadzenDataGridColumn TItem="ActionItem" Property="Action" Title="Acción" MinWidth="220px" />
+                <RadzenDataGridColumn TItem="ActionItem" Property="Stores" Title="Tiendas" Width="120px" />
+                <RadzenDataGridColumn TItem="ActionItem" Property="Priority" Title="Prioridad" Width="110px">
+                    <Template Context="item">
+                        <RadzenBadge Text="@item.Priority" BadgeStyle="@PriorityBadgeStyle(item.Priority)" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="ActionItem" Property="Deadline" Title="Plazo" Width="110px" />
+                <RadzenDataGridColumn TItem="ActionItem" Property="Responsible" Title="Responsable" Width="150px" />
+                <RadzenDataGridColumn TItem="ActionItem" Property="Status" Title="Estado" Width="160px">
+                    <Template Context="item">
+                        <RadzenDropDown TValue="string" Value="@item.Status"
+                                        Data="@_statusOptions"
+                                        Change="@(v => UpdateStatus(item, v?.ToString() ?? string.Empty))"
+                                        Style="width:100%;font-size:0.82rem" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="ActionItem" Property="Notes" Title="Observaciones" MinWidth="200px">
+                    <Template Context="item">
+                        <span style="font-size:0.78rem">@item.Notes</span>
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenCard>
 }
 
 @code {
     private bool _loading = true;
     private List<ActionItem> _items = [];
+
+    private static readonly string[] _statusOptions =
+        ["Pendiente", "En curso", "Acción iniciada", "Completado"];
 
     protected override async Task OnInitializedAsync()
     {
@@ -104,12 +98,11 @@ else
             _items[idx] = item with { Status = newStatus };
     }
 
-    private Color PriorityColor(string priority) => priority switch
+    private BadgeStyle PriorityBadgeStyle(string priority) => priority switch
     {
-        "INMEDIATO" => Color.Error,
-        "CRÍTICO"   => Color.Error,
-        "ALTO"      => Color.Warning,
-        "MODERADO"  => Color.Default,
-        _           => Color.Default
+        "INMEDIATO" => BadgeStyle.Danger,
+        "CRÍTICO"   => BadgeStyle.Danger,
+        "ALTO"      => BadgeStyle.Warning,
+        _           => BadgeStyle.Light
     };
 }

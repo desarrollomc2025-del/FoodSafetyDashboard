@@ -4,92 +4,74 @@
 
 <PageTitle>Hallazgos Sistémicos</PageTitle>
 
-<MudText Typo="Typo.h5" Class="mb-4">Hallazgos Sistémicos</MudText>
+<RadzenText TextStyle="TextStyle.H5" class="rz-mb-4">Hallazgos Sistémicos</RadzenText>
 
 @if (_loading)
 {
-    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" class="rz-mb-4" />
 }
 else
 {
-    <!-- Resumen por severidad -->
-    <MudGrid Class="mb-4">
-        <MudItem xs="12" sm="4">
-            <MudPaper Class="pa-3 text-center" Elevation="2" Style="border-left: 4px solid #C00000;">
-                <MudText Typo="Typo.h4" Style="color:#C00000"><b>@_findings.Count(f => f.Severity == "CRÍTICO")</b></MudText>
-                <MudText Typo="Typo.body1">Hallazgos CRÍTICOS</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="4">
-            <MudPaper Class="pa-3 text-center" Elevation="2" Style="border-left: 4px solid #ED7D31;">
-                <MudText Typo="Typo.h4" Style="color:#ED7D31"><b>@_findings.Count(f => f.Severity == "ALTO")</b></MudText>
-                <MudText Typo="Typo.body1">Hallazgos ALTO</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="4">
-            <MudPaper Class="pa-3 text-center" Elevation="2" Style="border-left: 4px solid #FFD966;">
-                <MudText Typo="Typo.h4" Style="color:#b8860b"><b>@_findings.Count(f => f.Severity == "MODERADO")</b></MudText>
-                <MudText Typo="Typo.body1">Hallazgos MODERADOS</MudText>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+    <RadzenRow Gap="1rem" class="rz-mb-4">
+        <RadzenColumn Size="12" SizeSM="4">
+            <RadzenCard style="border-left:4px solid #C00000;text-align:center;padding:1rem">
+                <RadzenText TextStyle="TextStyle.H4" style="color:#C00000;font-weight:700">
+                    @_findings.Count(f => f.Severity == "CRÍTICO")
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body1">Hallazgos CRÍTICOS</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeSM="4">
+            <RadzenCard style="border-left:4px solid #ED7D31;text-align:center;padding:1rem">
+                <RadzenText TextStyle="TextStyle.H4" style="color:#ED7D31;font-weight:700">
+                    @_findings.Count(f => f.Severity == "ALTO")
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body1">Hallazgos ALTO</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeSM="4">
+            <RadzenCard style="border-left:4px solid #FFD966;text-align:center;padding:1rem">
+                <RadzenText TextStyle="TextStyle.H4" style="color:#b8860b;font-weight:700">
+                    @_findings.Count(f => f.Severity == "MODERADO")
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body1">Hallazgos MODERADOS</RadzenText>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
 
-    <!-- Tabla de hallazgos -->
-    <MudPaper Elevation="2">
-        <MudTable Items="_findings" Dense="true" Striped="true" Hover="true"
-                  GroupBy="_groupDefinition" GroupHeaderStyle="background-color:#f5f7fa">
-            <HeaderContent>
-                <MudTh>#</MudTh>
-                <MudTh>Descripción</MudTh>
-                <MudTh>Categoría</MudTh>
-                <MudTh>Severidad</MudTh>
-                <MudTh>Tiendas Afectadas</MudTh>
-                <MudTh>Acción Requerida</MudTh>
-            </HeaderContent>
-            <GroupHeaderTemplate>
-                <MudTh colspan="6">
-                    <MudText Typo="Typo.subtitle2">
-                        <b>@context.Key</b> — @context.Items.Count() hallazgos
-                    </MudText>
-                </MudTh>
-            </GroupHeaderTemplate>
-            <RowTemplate>
-                <MudTd>@(_findings.IndexOf(context) + 1)</MudTd>
-                <MudTd Style="max-width:300px; white-space:normal">@context.Description</MudTd>
-                <MudTd>@context.Category</MudTd>
-                <MudTd>
-                    <MudChip T="string" Color="@SevColor(context.Severity)" Size="Size.Small">
-                        @context.Severity
-                    </MudChip>
-                </MudTd>
-                <MudTd>
-                    @foreach (var sid in context.AffectedStores.Take(6))
-                    {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="ma-0 mr-1">@sid</MudChip>
-                    }
-                    @if (context.AffectedStores.Count > 6)
-                    {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Dark">+@(context.AffectedStores.Count - 6)</MudChip>
-                    }
-                </MudTd>
-                <MudTd Style="max-width:280px; white-space:normal">@context.Action</MudTd>
-            </RowTemplate>
-        </MudTable>
-    </MudPaper>
+    <RadzenCard>
+        <RadzenDataGrid Data="@_findings" TItem="SystemicFinding"
+                        AllowSorting="true" AllowGrouping="true"
+                        Density="Density.Compact">
+            <Columns>
+                <RadzenDataGridColumn TItem="SystemicFinding" Property="Severity" Title="Severidad" Width="120px" Groupable="true">
+                    <Template Context="f">
+                        <RadzenBadge Text="@f.Severity" BadgeStyle="@SevBadgeStyle(f.Severity)" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="SystemicFinding" Property="Description" Title="Descripción" />
+                <RadzenDataGridColumn TItem="SystemicFinding" Property="Category" Title="Categoría" Width="130px" />
+                <RadzenDataGridColumn TItem="SystemicFinding" Property="StoreCount" Title="Tiendas Afectadas" Width="100px">
+                    <Template Context="f">
+                        @foreach (var sid in f.AffectedStores.Take(6))
+                        {
+                            <RadzenBadge Text="@sid.ToString()" BadgeStyle="BadgeStyle.Light" class="rz-mr-1" />
+                        }
+                        @if (f.AffectedStores.Count > 6)
+                        {
+                            <RadzenBadge Text="@($"+{f.AffectedStores.Count - 6}")" BadgeStyle="BadgeStyle.Dark" />
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="SystemicFinding" Property="Action" Title="Acción Requerida" />
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenCard>
 }
 
 @code {
     private bool _loading = true;
     private List<SystemicFinding> _findings = [];
-
-    private TableGroupDefinition<SystemicFinding> _groupDefinition = new()
-    {
-        GroupName = "Severidad",
-        Indentation = false,
-        Expandable = true,
-        IsInitiallyExpanded = true,
-        Selector = f => f.Severity
-    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -97,11 +79,10 @@ else
         _loading = false;
     }
 
-    private Color SevColor(string severity) => severity switch
+    private BadgeStyle SevBadgeStyle(string severity) => severity switch
     {
-        "CRÍTICO"  => Color.Error,
-        "ALTO"     => Color.Warning,
-        "MODERADO" => Color.Default,
-        _          => Color.Default
+        "CRÍTICO"  => BadgeStyle.Danger,
+        "ALTO"     => BadgeStyle.Warning,
+        _          => BadgeStyle.Light
     };
 }
