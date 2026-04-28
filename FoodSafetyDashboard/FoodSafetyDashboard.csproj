@@ -14,7 +14,7 @@
 
   <ItemGroup>
     <PackageReference Include="Blazor-ApexCharts" Version="6.1.0" />
-    <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="EPPlus" Version="7.6.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

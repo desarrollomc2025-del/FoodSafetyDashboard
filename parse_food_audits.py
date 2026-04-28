@@ -1,11 +1,14 @@
 import json
-import os
 import re
 import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import pdfplumber
+
+# Ruta al appsettings.json para leer el connection string
+APPSETTINGS = Path(__file__).parent / "FoodSafetyDashboard" / "appsettings.json"
 
 
 DEPARTAMENTOS: set[str] = {
@@ -311,7 +314,7 @@ def extract_header(page1: str, source_file: str) -> Dict[str, Any]:
     if m:
         data["manager_in_charge"] = m.group(1).strip()
 
-    m = re.search(r"Critical Violations\s+(\d+)(?!\s+\d)", page1, re.IGNORECASE)
+    m = re.search(r"Critical Violations\s+(\d+)", page1, re.IGNORECASE)
     if m:
         data["critical_violations"] = int(m.group(1))
 
@@ -495,20 +498,20 @@ def build_sql(audit: Dict[str, Any], sections: List[Dict[str, Any]], findings: L
 ) VALUES (
     {audit['store_id']},
     {audit['audit_id']},
-    {sql_escape(audit['location'])},
+    {sql_escape(audit.get('location'))},
     {sql_escape(audit.get('departamento'))},
     {sql_escape(audit.get('municipio'))},
-    {sql_escape(audit['audit_start'])},
-    {sql_escape(audit['audit_end'])},
-    {sql_escape(audit['auditor'])},
-    {sql_escape(audit['franchisee'])},
-    {sql_escape(audit['manager_in_charge'])},
-    {audit['points_earned']},
-    {audit['points_possible']},
-    {audit['percentage_score']},
-    {audit['critical_violations']},
-    {audit['total_violations']},
-    {sql_escape(audit['source_file'])}
+    {sql_escape(audit.get('audit_start'))},
+    {sql_escape(audit.get('audit_end'))},
+    {sql_escape(audit.get('auditor'))},
+    {sql_escape(audit.get('franchisee'))},
+    {sql_escape(audit.get('manager_in_charge'))},
+    {audit.get('points_earned')},
+    {audit.get('points_possible')},
+    {audit.get('percentage_score')},
+    {audit.get('critical_violations', 0)},
+    {audit.get('total_violations', 0)},
+    {sql_escape(audit.get('source_file'))}
 );"""
     )
 
@@ -567,54 +570,78 @@ def build_sql(audit: Dict[str, Any], sections: List[Dict[str, Any]], findings: L
 
 
 def build_sql_update(audit: Dict[str, Any], sections: List[Dict[str, Any]], findings: List[Dict[str, Any]]) -> str:
-    sql_parts: List[str] = []
+    """
+    Actualiza el registro completo de una tienda existente usando su store_id.
+    - Captura el audit_id viejo con DECLARE para limpiar las tablas hijas.
+    - Actualiza audits por store_id (funciona aunque cambie el audit_id).
+    - Borra y re-inserta secciones y hallazgos con el nuevo audit_id.
+    """
+    store_id  = audit.get('store_id')
+    new_audit_id = audit.get('audit_id')
 
-    sql_parts.append(
-        f"""UPDATE audits SET
-    store_id = {audit['store_id']},
-    location = {sql_escape(audit['location'])},
-    departamento = {sql_escape(audit.get('departamento'))},
-    municipio = {sql_escape(audit.get('municipio'))},
-    audit_start = {sql_escape(audit['audit_start'])},
-    audit_end = {sql_escape(audit['audit_end'])},
-    auditor = {sql_escape(audit['auditor'])},
-    franchisee = {sql_escape(audit['franchisee'])},
-    manager_in_charge = {sql_escape(audit['manager_in_charge'])},
-    points_earned = {audit['points_earned']},
-    points_possible = {audit['points_possible']},
-    percentage_score = {audit['percentage_score']},
-    critical_violations = {audit['critical_violations']},
-    total_violations = {audit['total_violations']},
-    source_file = {sql_escape(audit['source_file'])}
-WHERE audit_id = {audit['audit_id']};"""
-    )
-
-    for s in sections:
-        sql_parts.append(
-            f"""UPDATE audit_sections SET
-    points_earned = {s['points_earned']},
-    points_possible = {s['points_possible']},
-    section_score = {s['section_score']},
-    total_violations = {s['total_violations']}
-WHERE audit_id = {s['audit_id']}
-  AND section_name = {sql_escape(s['section_name'])};"""
+    # Secciones como VALUES individuales
+    section_values = ""
+    if sections:
+        rows = ", ".join(
+            f"({s['audit_id']}, {sql_escape(s['section_name'])}, {s['points_earned']}, "
+            f"{s['points_possible']}, {s['section_score']}, {s['total_violations']})"
+            for s in sections
+        )
+        section_values = (
+            "INSERT INTO audit_sections "
+            "(audit_id, section_name, points_earned, points_possible, section_score, total_violations) "
+            f"VALUES {rows};"
         )
 
-    for f in findings:
-        sql_parts.append(
-            f"""UPDATE audit_findings SET
-    answer_value = {sql_escape(f['answer_value'])},
-    points_earned = {f['points_earned']},
-    points_possible = {f['points_possible']},
-    finding_type = {sql_escape(f['finding_type'])},
-    comment_text = {sql_escape(f['comment_text'])},
-    evidence_page = {f['evidence_page']}
-WHERE audit_id = {f['audit_id']}
-  AND section_name = {sql_escape(f['section_name'])}
-  AND question_text = {sql_escape(f['question_text'])};"""
+    # Hallazgos como VALUES individuales
+    finding_values = ""
+    if findings:
+        rows = ", ".join(
+            f"({f['audit_id']}, {sql_escape(f['section_name'])}, {sql_escape(f['question_text'])}, "
+            f"{sql_escape(f['answer_value'])}, {f['points_earned']}, {f['points_possible']}, "
+            f"{sql_escape(f['finding_type'])}, {sql_escape(f['comment_text'])}, {f['evidence_page']})"
+            for f in findings
+        )
+        finding_values = (
+            "INSERT INTO audit_findings "
+            "(audit_id, section_name, question_text, answer_value, points_earned, points_possible, "
+            "finding_type, comment_text, evidence_page) "
+            f"VALUES {rows};"
         )
 
-    return "\n\n".join(sql_parts)
+    return f"""BEGIN TRANSACTION;
+
+-- Guardar el audit_id actual de la tienda para limpiar sus hijos
+DECLARE @old_audit_id INT = (SELECT audit_id FROM audits WHERE store_id = {store_id});
+
+-- Limpiar tablas hijas con el audit_id viejo
+DELETE FROM audit_findings WHERE audit_id = @old_audit_id;
+DELETE FROM audit_sections WHERE audit_id = @old_audit_id;
+
+-- Actualizar el registro principal por store_id
+UPDATE audits SET
+    audit_id             = {new_audit_id},
+    location             = {sql_escape(audit.get('location'))},
+    departamento         = {sql_escape(audit.get('departamento'))},
+    municipio            = {sql_escape(audit.get('municipio'))},
+    audit_start          = {sql_escape(audit.get('audit_start'))},
+    audit_end            = {sql_escape(audit.get('audit_end'))},
+    auditor              = {sql_escape(audit.get('auditor'))},
+    franchisee           = {sql_escape(audit.get('franchisee'))},
+    manager_in_charge    = {sql_escape(audit.get('manager_in_charge'))},
+    points_earned        = {audit.get('points_earned')},
+    points_possible      = {audit.get('points_possible')},
+    percentage_score     = {audit.get('percentage_score')},
+    critical_violations  = {audit.get('critical_violations', 0)},
+    total_violations     = {audit.get('total_violations', 0)},
+    source_file          = {sql_escape(audit.get('source_file'))}
+WHERE store_id = {store_id};
+
+-- Re-insertar secciones y hallazgos con el nuevo audit_id
+{section_values}
+{finding_values}
+
+COMMIT;"""
 
 
 def process_pdf(pdf_path: Path) -> Dict[str, Any]:
@@ -641,101 +668,70 @@ def process_pdf(pdf_path: Path) -> Dict[str, Any]:
 
 
 def dedupe_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    seen = set()
-    clean = []
-
+    """Mantiene un único registro por store_id (el último encontrado = más reciente)."""
+    seen: Dict[Any, int] = {}
     for item in results:
-        audit_id = item["audit"].get("audit_id")
-        if audit_id in seen:
-            continue
-        seen.add(audit_id)
-        clean.append(item)
+        store_id = item["audit"].get("store_id")
+        seen[store_id] = item   # type: ignore[assignment]
+    return list(seen.values())
 
-    return clean
+
+def read_conn_str() -> Optional[str]:
+    if APPSETTINGS.exists():
+        with open(APPSETTINGS, encoding="utf-8") as f:
+            cfg = json.load(f)
+        return cfg.get("PdfProcessing", {}).get("PyOdbcConnStr")
+    return None
+
+
+def execute_sql_blocks(conn_str: str, blocks: List[str], label: str) -> List[str]:
+    """Ejecuta cada bloque SQL contra SQL Server. Retorna lista de errores."""
+    try:
+        import pyodbc  # type: ignore
+    except ImportError:
+        print("  [WARN] pyodbc no instalado — ejecutar SQL manualmente.")
+        return ["pyodbc no disponible"]
+
+    db_errors: List[str] = []
+    try:
+        conn = pyodbc.connect(conn_str)
+        conn.autocommit = True          # cada bloque maneja su propia transacción
+        cursor = conn.cursor()
+        for i, block in enumerate(blocks, 1):
+            try:
+                cursor.execute(block)
+                print(f"  {label} {i}/{len(blocks)}: OK")
+            except Exception as e:
+                msg = f"{label} bloque {i}: {e}"
+                db_errors.append(msg)
+                print(f"  {label} {i}/{len(blocks)}: ERROR -> {e}")
+        conn.close()
+    except Exception as e:
+        msg = f"Conexión BD: {e}"
+        db_errors.append(msg)
+        print(f"  [ERROR] {msg}")
+
+    return db_errors
 
 
 def load_existing_results(output_json: Path) -> List[Dict[str, Any]]:
     if output_json.exists():
         with open(output_json, "r", encoding="utf-8") as f:
-            return json.load(f)
+            results = json.load(f)
+        # Backfill campos agregados después del parse inicial
+        for item in results:
+            audit = item.get("audit", {})
+            if "departamento" not in audit or "municipio" not in audit:
+                municipio, departamento = extract_municipio_departamento(audit.get("location"))
+                if "municipio" not in audit:
+                    audit["municipio"] = municipio
+                if "departamento" not in audit:
+                    audit["departamento"] = departamento
+        return results
     return []
 
 
-def db_upsert(conn_str: str, audit: Dict[str, Any], sections: List[Dict[str, Any]], findings: List[Dict[str, Any]], is_update: bool = False) -> None:
-    import pyodbc
-
-    conn = pyodbc.connect(conn_str)
-    cursor = conn.cursor()
-    try:
-        if is_update:
-            cursor.execute(
-                """UPDATE audits SET
-                    store_id=?, location=?, departamento=?, municipio=?,
-                    audit_start=?, audit_end=?, auditor=?, franchisee=?,
-                    manager_in_charge=?, points_earned=?, points_possible=?,
-                    percentage_score=?, critical_violations=?, total_violations=?,
-                    source_file=?
-                WHERE audit_id=?""",
-                (
-                    audit["store_id"], audit["location"], audit.get("departamento"),
-                    audit.get("municipio"), audit["audit_start"], audit["audit_end"],
-                    audit["auditor"], audit["franchisee"], audit["manager_in_charge"],
-                    audit["points_earned"], audit["points_possible"],
-                    audit["percentage_score"], audit["critical_violations"],
-                    audit["total_violations"], audit["source_file"],
-                    audit["audit_id"],
-                ),
-            )
-            cursor.execute("DELETE FROM audit_sections WHERE audit_id=?", (audit["audit_id"],))
-            cursor.execute("DELETE FROM audit_findings WHERE audit_id=?", (audit["audit_id"],))
-        else:
-            cursor.execute(
-                """INSERT INTO audits (audit_id, store_id, location, departamento, municipio,
-                    audit_start, audit_end, auditor, franchisee, manager_in_charge,
-                    points_earned, points_possible, percentage_score,
-                    critical_violations, total_violations, source_file)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    audit["audit_id"], audit["store_id"], audit["location"],
-                    audit.get("departamento"), audit.get("municipio"),
-                    audit["audit_start"], audit["audit_end"],
-                    audit["auditor"], audit["franchisee"], audit["manager_in_charge"],
-                    audit["points_earned"], audit["points_possible"],
-                    audit["percentage_score"], audit["critical_violations"],
-                    audit["total_violations"], audit["source_file"],
-                ),
-            )
-
-        for s in sections:
-            cursor.execute(
-                """INSERT INTO audit_sections
-                    (audit_id, section_name, points_earned, points_possible, section_score, total_violations)
-                VALUES (?,?,?,?,?,?)""",
-                (s["audit_id"], s["section_name"], s["points_earned"], s["points_possible"], s["section_score"], s["total_violations"]),
-            )
-
-        for f in findings:
-            cursor.execute(
-                """INSERT INTO audit_findings
-                    (audit_id, section_name, question_text, answer_value, points_earned,
-                     points_possible, finding_type, comment_text, evidence_page)
-                VALUES (?,?,?,?,?,?,?,?,?)""",
-                (
-                    f["audit_id"], f["section_name"], f["question_text"],
-                    f["answer_value"], f["points_earned"], f["points_possible"],
-                    f["finding_type"], f["comment_text"], f["evidence_page"],
-                ),
-            )
-
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
-
-
-def process_folder(base_folder: str, conn_str: Optional[str] = None) -> None:
+def process_folder(base_folder: str) -> None:
     base = Path(base_folder)
     in_folder = base / "in"
     out_folder = base / "out"
@@ -745,43 +741,46 @@ def process_folder(base_folder: str, conn_str: Optional[str] = None) -> None:
     out_folder.mkdir(parents=True, exist_ok=True)
     error_folder.mkdir(parents=True, exist_ok=True)
 
-    output_json = base / "audits.json"
-    output_sql = base / "all_inserts.sql"
-    output_updates_sql = base / "all_updates.sql"
+    output_json   = base / "audits.json"
     output_errors = base / "errors.log"
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_sql        = base / f"inserts_{ts}.sql"
+    output_updates_sql = base / f"updates_{ts}.sql"
 
     existing_results = load_existing_results(output_json)
     existing_results = dedupe_results(existing_results)
 
-    existing_index = {
-        item["audit"]["audit_id"]: idx
+    # Índice por store_id para detectar si la tienda ya tiene registro
+    store_index = {
+        item["audit"]["store_id"]: idx
         for idx, item in enumerate(existing_results)
-        if item.get("audit", {}).get("audit_id") is not None
+        if item.get("audit", {}).get("store_id") is not None
     }
+    original_store_ids = set(store_index.keys())
 
     pdf_files = sorted(in_folder.glob("*.pdf"))
-    errors: List[str] = []
-    updates: List[Dict[str, Any]] = []
+    errors:    List[str]            = []
+    new_items: List[Dict[str, Any]] = []   # tiendas nuevas → INSERT
+    updates:   List[Dict[str, Any]] = []   # tiendas existentes → UPDATE
 
     for pdf_file in pdf_files:
         try:
-            parsed = process_pdf(pdf_file)
+            parsed   = process_pdf(pdf_file)
+            store_id = parsed["audit"]["store_id"]
             audit_id = parsed["audit"]["audit_id"]
-            is_update = audit_id in existing_index
 
-            if is_update:
-                existing_results[existing_index[audit_id]] = parsed
+            if store_id in original_store_ids:
+                existing_results[store_index[store_id]] = parsed
                 updates.append(parsed)
+                shutil.move(str(pdf_file), str(out_folder / pdf_file.name))
+                print(f"UPDATE: {pdf_file.name} -> store {store_id} (audit_id {audit_id})")
             else:
                 existing_results.append(parsed)
-                existing_index[audit_id] = len(existing_results) - 1
-
-            if conn_str:
-                db_upsert(conn_str, parsed["audit"], parsed["sections"], parsed["findings"], is_update=is_update)
-
-            shutil.move(str(pdf_file), str(out_folder / pdf_file.name))
-            action = "UPDATE" if is_update else "OK"
-            print(f"{action}: {pdf_file.name} -> audit_id {audit_id}")
+                store_index[store_id] = len(existing_results) - 1
+                original_store_ids.add(store_id)
+                new_items.append(parsed)
+                shutil.move(str(pdf_file), str(out_folder / pdf_file.name))
+                print(f"INSERT: {pdf_file.name} -> store {store_id} (audit_id {audit_id})")
 
         except Exception as e:
             errors.append(f"{pdf_file.name} -> {e}")
@@ -790,11 +789,13 @@ def process_folder(base_folder: str, conn_str: Optional[str] = None) -> None:
 
     existing_results = dedupe_results(existing_results)
 
-    sql_blocks = [
+    # INSERT solo para registros nuevos de este run
+    insert_blocks = [
         build_sql(item["audit"], item["sections"], item["findings"])
-        for item in existing_results
+        for item in new_items
     ]
 
+    # UPDATE solo para registros que reemplazaron uno ya existente
     update_blocks = [
         build_sql_update(item["audit"], item["sections"], item["findings"])
         for item in updates
@@ -803,8 +804,9 @@ def process_folder(base_folder: str, conn_str: Optional[str] = None) -> None:
     with open(output_json, "w", encoding="utf-8") as f:
         json.dump(existing_results, f, ensure_ascii=False, indent=2)
 
-    with open(output_sql, "w", encoding="utf-8") as f:
-        f.write("\n\n-- ==============================\n\n".join(sql_blocks))
+    if insert_blocks:
+        with open(output_sql, "w", encoding="utf-8") as f:
+            f.write("\n\n-- ==============================\n\n".join(insert_blocks))
 
     if update_blocks:
         with open(output_updates_sql, "w", encoding="utf-8") as f:
@@ -814,6 +816,21 @@ def process_folder(base_folder: str, conn_str: Optional[str] = None) -> None:
         for err in errors:
             f.write(err + "\n")
 
+    # ── Ejecutar SQL contra la base de datos ──────────────────────────────────
+    conn_str = read_conn_str()
+    if conn_str and (insert_blocks or update_blocks):
+        print("\nEjecutando contra la BD...")
+        if insert_blocks:
+            db_errs = execute_sql_blocks(conn_str, insert_blocks, "INSERT")
+            errors.extend(db_errs)
+        if update_blocks:
+            db_errs = execute_sql_blocks(conn_str, update_blocks, "UPDATE")
+            errors.extend(db_errs)
+        if not errors:
+            print("  BD actualizada correctamente.")
+    elif not conn_str:
+        print("\n[WARN] PyOdbcConnStr no encontrado — ejecutar SQL manualmente.")
+
     unique_stores = {
         item["audit"]["store_id"]
         for item in existing_results
@@ -821,27 +838,17 @@ def process_folder(base_folder: str, conn_str: Optional[str] = None) -> None:
     }
 
     print("\nResumen final")
-    print(f"Auditorías únicas: {len(existing_results)}")
-    print(f"Stores únicas: {len(unique_stores)}")
-    print(f"Actualizadas  : {len(updates)}")
-    print(f"Generado JSON: {output_json}")
-    print(f"Generado SQL (INSERTs): {output_sql}")
+    print(f"Auditorías únicas    : {len(existing_results)}")
+    print(f"Stores únicas        : {len(unique_stores)}")
+    print(f"Nuevos (INSERT)      : {len(new_items)}")
+    print(f"Actualizados (UPDATE): {len(updates)}")
+    print(f"Errores              : {len(errors)}")
+    print(f"Generado JSON        : {output_json}")
+    if insert_blocks:
+        print(f"Generado SQL INSERT  : {output_sql}")
     if update_blocks:
-        print(f"Generado SQL (UPDATEs): {output_updates_sql}")
-    print(f"Errores       : {output_errors}")
+        print(f"Generado SQL UPDATE  : {output_updates_sql}")
 
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Food Safety PDF Parser")
-    parser.add_argument("--pdfs", default="./pdfs", help="Carpeta base de PDFs (default: ./pdfs)")
-    parser.add_argument("--db", action="store_true", help="Insertar resultados directo a la BD")
-    args = parser.parse_args()
-
-    conn = os.environ.get("FOODSAFETY_CONN", "") if args.db else None
-    if args.db and not conn:
-        print("ERROR: --db requiere la variable de entorno FOODSAFETY_CONN con el connection string de pyodbc.")
-        raise SystemExit(1)
-
-    process_folder(args.pdfs, conn_str=conn)
+    process_folder("./pdfs")

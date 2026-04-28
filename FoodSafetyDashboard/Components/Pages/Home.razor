@@ -90,8 +90,7 @@ else if (_kpis is not null)
                                      SeriesType="SeriesType.Bar"
                                      Name="Nota %"
                                      XValue="@(g => g.Group)"
-                                     YValue="@(g => (decimal)Math.Round(g.AvgScore, 1))"
-                                     Color="#2E75B6" />
+                                     YValue="@(g => (decimal)Math.Round(g.AvgScore, 1))" />
                 </ApexChart>
             </RadzenCard>
         </RadzenColumn>
@@ -104,8 +103,7 @@ else if (_kpis is not null)
                                      SeriesType="SeriesType.Bar"
                                      Name="Score %"
                                      XValue="@(s => s.Section)"
-                                     YValue="@(s => (decimal)Math.Round(s.Score, 1))"
-                                     Color="#70AD47" />
+                                     YValue="@(s => (decimal)Math.Round(s.Score, 1))" />
                 </ApexChart>
             </RadzenCard>
         </RadzenColumn>
@@ -278,17 +276,21 @@ else if (_kpis is not null)
     private ApexChartOptions<GroupSummary> _groupChartOptions = new()
     {
         Chart = new Chart { Toolbar = new Toolbar { Show = false } },
+        Colors = ["#2E75B6", "#ED7D31", "#70AD47", "#FFC000", "#7030A0", "#FF4136"],
         Yaxis = [new YAxis { Min = 50, Max = 100, Labels = new YAxisLabels { Formatter = "function(v){return v+'%'}" } }],
-        PlotOptions = new PlotOptions { Bar = new PlotOptionsBar { BorderRadius = 4 } },
+        PlotOptions = new PlotOptions { Bar = new PlotOptionsBar { BorderRadius = 4, Distributed = true } },
         DataLabels = new DataLabels { Enabled = true, Formatter = "function(v){return v+'%'}" },
+        Legend = new Legend { Show = false },
     };
 
     private ApexChartOptions<SectionPoint> _sectionChartOptions = new()
     {
         Chart = new Chart { Toolbar = new Toolbar { Show = false } },
+        Colors = ["#E53935", "#039BE5", "#FB8C00", "#8E24AA", "#43A047"],
         Yaxis = [new YAxis { Min = 50, Max = 100, Labels = new YAxisLabels { Formatter = "function(v){return v+'%'}" } }],
-        PlotOptions = new PlotOptions { Bar = new PlotOptionsBar { BorderRadius = 4 } },
+        PlotOptions = new PlotOptions { Bar = new PlotOptionsBar { BorderRadius = 4, Distributed = true } },
         DataLabels = new DataLabels { Enabled = true, Formatter = "function(v){return v+'%'}" },
+        Legend = new Legend { Show = false },
     };
 
     private ApexChartOptions<SectionGroupPoint> _sectionGroupOptions = new()
