@@ -36,3 +36,8 @@ FoodSafetyDashboard/appsettings.Development.json
 *.suo
 Thumbs.db
 .DS_Store
+
+# Claves SSH y archivos binarios grandes
+*.pem
+*.ppk
+*.zip
