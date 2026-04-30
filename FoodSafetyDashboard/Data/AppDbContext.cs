@@ -8,6 +8,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Audit> Audits => Set<Audit>();
     public DbSet<AuditSection> AuditSections => Set<AuditSection>();
     public DbSet<AuditFinding> AuditFindings => Set<AuditFinding>();
+    public DbSet<Store> Stores => Set<Store>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -137,12 +137,17 @@ public class AuditService(IDbContextFactory<AppDbContext> dbFactory, IConfigurat
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private Dictionary<int, string> GetGroupMap()
+    private async Task<Dictionary<int, string>> GetGroupMapAsync()
     {
-        var section = config.GetSection("StoreGroups");
-        return section.GetChildren()
-            .ToDictionary(x => int.Parse(x.Key), x => x.Value ?? "CLÁSICA");
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var stores = await db.Stores.ToListAsync();
+        return stores.ToDictionary(
+            s => s.StoreId,
+            s => NormalizeGroupName(s.StoreType));
     }
+
+    private static string NormalizeGroupName(string? raw) =>
+        (raw ?? "").Trim().ToUpperInvariant() == "DEX" ? "DEX" : "CLÁSICA";
 
     private static string MapSection(string? raw) =>
         raw is not null && SectionMap.TryGetValue(raw, out var mapped) ? mapped : raw ?? "";
@@ -155,7 +160,7 @@ public class AuditService(IDbContextFactory<AppDbContext> dbFactory, IConfigurat
     public async Task<List<StoreRow>> GetStoreRowsAsync(int? year = null, int? month = null)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
-        var groups = GetGroupMap();
+        var groups = await GetGroupMapAsync();
         var query = db.Audits
             .Include(a => a.Sections)
             .AsQueryable();
